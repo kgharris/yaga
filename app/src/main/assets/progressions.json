@@ -1,0 +1,62 @@
+[
+  {
+    "name": "I IV V",
+    "mode": "Major",
+    "chords": ["I", "IV", "V"]
+  },
+  {
+    "name": "ii V I",
+    "mode": "Major",
+    "chords": ["ii", "V", "I"]
+  },
+  {
+    "name": "I vi ii V I",
+    "mode": "Major",
+    "chords": ["I", "vi", "ii", "V", "I"]
+  },
+  {
+    "name": "Standard 12-Bar Blues",
+    "mode": "Major",
+    "chords": ["I7", "I7", "I7", "I7", "IV7", "IV7", "I7", "I7", "V", "I7", "IV7", "V"]
+  },
+  {
+    "name": "Quick-Change 12-Bar Blues",
+    "mode": "Major",
+    "chords": ["I7", "IV7", "I7", "I7", "IV7", "IV7", "I7", "I7", "V7", "IV7", "I7", "V7"]
+  },
+  {
+    "name": "8-Bar Blues",
+    "mode": "Major",
+    "chords": ["I7", "I7", "IV7", "IV7", "I7", "V7", "I7", "V7"]
+  },
+  {
+    "name": "16-Bar Slow Blues",
+    "mode": "Major",
+    "chords": ["I7", "I7", "I7", "I7", "I7", "I7", "I7", "I7", "IV7", "IV7", "I7", "I7", "V7", "IV7", "I7", "V7"]
+  },
+  {
+    "name": "Jazz-Blues (Bird Changes)",
+    "mode": "Major",
+    "chords": ["I7", "IV7", "I7", "I7", "IV7", "#IV°7", "I7", "VI7", "ii", "V7", "I7", "♭VII7"]
+  },
+  {
+    "name": "Texas Turnaround",
+    "mode": "Major",
+    "chords": ["I7", "IV7", "I7", "I7", "IV7", "IV7", "I7", "I7", "I7", "♭VII7", "IV7", "#IV°7", "I7", "V7", "I7", "V7"]
+  },
+  {
+    "name": "Minor Blues",
+    "mode": "Minor",
+    "chords": ["i", "i", "i", "i", "iv", "iv", "i", "i", "VI7", "V7", "i", "V7"]
+  },
+  {
+    "name": "Chicago Shuffle Ending",
+    "mode": "Major",
+    "chords": ["I7", "IV7", "I7", "♭VII7", "IV7", "#IV°7", "I7", "V7"]
+  },
+  {
+    "name": "Slow Blues w/ IV Substitute",
+    "mode": "Major",
+    "chords": ["I7", "I7", "I7", "I7", "IV7", "IV7", "I7", "I7", "V7", "♭VII7", "I7", "V7"]
+  }
+]
