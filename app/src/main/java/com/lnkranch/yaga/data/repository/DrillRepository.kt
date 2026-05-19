@@ -1,6 +1,7 @@
 package com.lnkranch.yaga.data.repository
 
 import com.lnkranch.yaga.data.db.AppDatabase
+import com.lnkranch.yaga.data.db.entity.ChordAttemptEntity
 import com.lnkranch.yaga.data.db.entity.PersonalBestEntity
 import com.lnkranch.yaga.data.db.entity.ProgressionEntity
 import com.lnkranch.yaga.data.db.entity.SessionResultEntity
@@ -15,6 +16,7 @@ class DrillRepository(db: AppDatabase) {
     private val progressionDao = db.progressionDao()
     private val personalBestDao = db.personalBestDao()
     private val sessionResultDao = db.sessionResultDao()
+    private val chordAttemptDao = db.chordAttemptDao()
 
     fun progressions(): Flow<List<ProgressionEntity>> = progressionDao.getAll()
 
@@ -66,4 +68,25 @@ class DrillRepository(db: AppDatabase) {
 
     fun sessionsForProgression(progressionId: Long): Flow<List<SessionResultEntity>> =
         sessionResultDao.getForProgression(progressionId)
+
+    suspend fun saveChordAttempts(attempts: List<ChordAttemptEntity>) =
+        chordAttemptDao.insertAll(attempts)
+
+    fun allAttemptsForMode(drillMode: String): Flow<List<ChordAttemptEntity>> =
+        chordAttemptDao.getAllForMode(drillMode)
+
+    fun distinctChordQualitiesForMode(drillMode: String): Flow<List<String>> =
+        chordAttemptDao.distinctQualitiesForMode(drillMode)
+
+    fun distinctDrillModes(): Flow<List<String>> =
+        chordAttemptDao.distinctDrillModes()
+
+    suspend fun deleteAttemptsForMode(drillMode: String) =
+        chordAttemptDao.deleteAttemptsForMode(drillMode)
+
+    suspend fun deleteAttemptsForCell(tonicName: String, chordQuality: String, drillMode: String) =
+        chordAttemptDao.deleteAttemptsForCell(tonicName, chordQuality, drillMode)
+
+    suspend fun deleteAllAttempts() =
+        chordAttemptDao.deleteAllAttempts()
 }

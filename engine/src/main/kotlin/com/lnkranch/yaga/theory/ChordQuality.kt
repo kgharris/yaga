@@ -4,7 +4,7 @@ enum class ChordQuality(
     private val intervals: List<Int>,
     val symbol: String,
 ) {
-    Maj7    (listOf(0, 4, 7, 11), "Maj7"),
+    Maj7    (listOf(0, 4, 7, 11), "△7"),
     Min7    (listOf(0, 3, 7, 10), "m7"),
     Dom7    (listOf(0, 4, 7, 10), "7"),
     HalfDim7(listOf(0, 3, 6, 10), "ø7"),

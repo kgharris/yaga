@@ -77,7 +77,7 @@ fun DrillScreenPreview() {
         DrillScreenContent(
             uiState = DrillUiState.Running(
                 progressionName = "Major 2-5-1",
-                currentChord = ResolvedChord("Dm7", "F", "C"),
+                currentChord = ResolvedChord("ii", "Min7", "Dm7", "F", "C"),
                 currentIndex = 0,
                 totalChords = 3,
                 noteButtons = listOf(

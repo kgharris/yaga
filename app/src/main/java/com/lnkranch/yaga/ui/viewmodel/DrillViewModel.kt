@@ -3,6 +3,7 @@ package com.lnkranch.yaga.ui.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.lnkranch.yaga.data.db.entity.ChordAttemptEntity
 import com.lnkranch.yaga.data.db.entity.SessionResultEntity
 import com.lnkranch.yaga.data.repository.DrillRepository
 import com.lnkranch.yaga.domain.DrillMode
@@ -78,6 +79,9 @@ class DrillViewModel(
     private var sessionStartMs = 0L
     private var progressionName = ""
     private var timerJob: Job? = null
+    private var chordStartMs: Long = 0L
+    private var chordMisTapCount: Int = 0
+    private val chordAttempts: MutableList<ChordAttemptEntity> = mutableListOf()
 
     init {
         viewModelScope.launch { loadSession() }
@@ -94,9 +98,11 @@ class DrillViewModel(
         progressionName = entity.name
 
         val romanChords = Json.decodeFromString<List<RomanChord>>(entity.chordsJson)
-        chords = romanChords.distinct().map { rc ->
+        chords = romanChords.map { rc ->
             val result = engine.resolve(key, rc)
             ResolvedChord(
+                romanChord = rc.romanNumeral,
+                chordQuality = rc.quality.name,
                 symbol = result.symbol,
                 third = result[ChordQuality.Tone._3rd] ?: "",
                 seventh = result[ChordQuality.Tone._7th] ?: "",
@@ -111,6 +117,7 @@ class DrillViewModel(
         }
 
         sessionStartMs = System.currentTimeMillis()
+        chordStartMs = sessionStartMs
         emitRunningState()
 
         timerJob = viewModelScope.launch {
@@ -146,6 +153,7 @@ class DrillViewModel(
             }
             else -> {
                 misTapCount++
+                chordMisTapCount++
                 showFeedback(noteName, NoteFeedback.Incorrect)
                 emitRunningState()
             }
@@ -164,6 +172,18 @@ class DrillViewModel(
     }
 
     private fun advanceChord() {
+        chordAttempts.add(ChordAttemptEntity(
+            sessionId = 0L,
+            chordQuality = chords[currentIndex].chordQuality,
+            romanChord = chords[currentIndex].romanChord,
+            chordSymbol = chords[currentIndex].symbol,
+            tonicName = tonicName,
+            drillMode = drillMode.name,
+            elapsedMs = System.currentTimeMillis() - chordStartMs,
+            misTapCount = chordMisTapCount,
+        ))
+        chordMisTapCount = 0
+        chordStartMs = System.currentTimeMillis()
         currentIndex++
         if (currentIndex >= chords.size) {
             finishSession()
@@ -191,6 +211,8 @@ class DrillViewModel(
             val previousBest = repository.getPersonalBest(progressionId, tonicName, drillMode.name)
             val savedId = repository.saveSession(result)
             val isNew = repository.updatePersonalBestIfImproved(progressionId, tonicName, drillMode.name, score, elapsedMs)
+            val attemptsWithId = chordAttempts.map { it.copy(sessionId = savedId) }
+            repository.saveChordAttempts(attemptsWithId)
             _uiState.value = DrillUiState.Complete(
                 sessionResult = result.copy(id = savedId),
                 isNewPersonalBest = isNew,

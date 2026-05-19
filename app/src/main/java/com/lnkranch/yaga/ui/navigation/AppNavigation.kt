@@ -11,10 +11,13 @@ import androidx.navigation.navArgument
 import com.lnkranch.yaga.DrillApplication
 import com.lnkranch.yaga.domain.DrillMode
 import com.lnkranch.yaga.ui.screen.DrillScreen
+import com.lnkranch.yaga.ui.screen.HeatmapScreen
+import com.lnkranch.yaga.ui.screen.HomeScreen
 import com.lnkranch.yaga.ui.screen.ProgressionBuilderScreen
 import com.lnkranch.yaga.ui.screen.SetupScreen
 import com.lnkranch.yaga.ui.screen.SummaryScreen
 import com.lnkranch.yaga.ui.viewmodel.DrillViewModel
+import com.lnkranch.yaga.ui.viewmodel.HeatmapViewModel
 import com.lnkranch.yaga.ui.viewmodel.ProgressionBuilderViewModel
 import com.lnkranch.yaga.ui.viewmodel.SetupViewModel
 import com.lnkranch.yaga.ui.viewmodel.SummaryViewModel
@@ -23,7 +26,15 @@ import com.lnkranch.yaga.ui.viewmodel.SummaryViewModel
 fun AppNavigation(app: DrillApplication) {
     val navController = rememberNavController()
 
-    NavHost(navController = navController, startDestination = "setup") {
+    NavHost(navController = navController, startDestination = "home") {
+        composable("home") {
+            HomeScreen(
+                onStartChordDrill = { navController.navigate("setup") },
+                onOpenHeatmap = { navController.navigate("heatmap") },
+                onBuildProgression = { navController.navigate("builder") },
+            )
+        }
+
         composable("setup") {
             val vm: SetupViewModel = viewModel(factory = SetupViewModel.Factory(app.repository))
             SetupScreen(
@@ -54,7 +65,7 @@ fun AppNavigation(app: DrillApplication) {
                 onSessionComplete = { complete ->
                     app.pendingSummary = complete
                     navController.navigate("summary") {
-                        popUpTo("setup") { inclusive = false }
+                        popUpTo("home") { inclusive = false }
                     }
                 },
             )
@@ -64,9 +75,16 @@ fun AppNavigation(app: DrillApplication) {
             val vm: SummaryViewModel = viewModel(factory = SummaryViewModel.Factory(app))
             SummaryScreen(
                 vm = vm,
-                onPlayAgain = { navController.popBackStack("setup", false) },
-                onBackToSetup = { navController.popBackStack("setup", false) },
+                onPlayAgain = { navController.popBackStack("home", false) },
+                onBackToSetup = { navController.popBackStack("home", false) },
             )
+        }
+
+        composable("heatmap") {
+            val vm: HeatmapViewModel = viewModel(
+                factory = HeatmapViewModel.Factory(app.repository),
+            )
+            HeatmapScreen(vm = vm)
         }
 
         composable("builder") {

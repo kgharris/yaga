@@ -44,10 +44,10 @@ class TheoryEngineTest {
         fun cases(): Stream<Arguments> = Stream.of(
 
             // ── C major: all 7 diatonic degrees ──────────────────────────────
-            row("C maj I",    Key.C_MAJOR, RomanChord.I,      "CMaj7", "C", "E",  "B"),
+            row("C maj I",    Key.C_MAJOR, RomanChord.I,      "C△7",   "C", "E",  "B"),
             row("C maj ii",   Key.C_MAJOR, RomanChord.II,     "Dm7",   "D", "F",  "C"),
             row("C maj iii",  Key.C_MAJOR, RomanChord.III,    "Em7",   "E", "G",  "D"),
-            row("C maj IV",   Key.C_MAJOR, RomanChord.IV,     "FMaj7", "F", "A",  "E"),
+            row("C maj IV",   Key.C_MAJOR, RomanChord.IV,     "F△7",   "F", "A",  "E"),
             row("C maj V",    Key.C_MAJOR, RomanChord.V,      "G7",    "G", "B",  "F"),
             row("C maj vi",   Key.C_MAJOR, RomanChord.VI,     "Am7",   "A", "C",  "G"),
             row("C maj vii°", Key.C_MAJOR, RomanChord.VIIDIM, "Bø7",   "B", "D",  "A"),
@@ -67,10 +67,10 @@ class TheoryEngineTest {
             // ── A minor: all 7 diatonic degrees ──────────────────────────────
             row("A min i",    Key.A_MINOR, RomanChord.i,      "Am7",   "A", "C",  "G"),
             row("A min ii°",  Key.A_MINOR, RomanChord.iiDim,  "Bø7",   "B", "D",  "A"),
-            row("A min III",  Key.A_MINOR, RomanChord.bIII,   "CMaj7", "C", "E",  "B"),
+            row("A min III",  Key.A_MINOR, RomanChord.bIII,   "C△7",   "C", "E",  "B"),
             row("A min iv",   Key.A_MINOR, RomanChord.iv,     "Dm7",   "D", "F",  "C"),
             row("A min v",    Key.A_MINOR, RomanChord.v,      "Em7",   "E", "G",  "D"),
-            row("A min VI",   Key.A_MINOR, RomanChord.bVI,    "FMaj7", "F", "A",  "E"),
+            row("A min VI",   Key.A_MINOR, RomanChord.bVI,    "F△7",   "F", "A",  "E"),
             row("A min VII",  Key.A_MINOR, RomanChord.bVII,   "G7",    "G", "B",  "F"),
 
             // ── E minor: verifies F# in minor key context ─────────────────────

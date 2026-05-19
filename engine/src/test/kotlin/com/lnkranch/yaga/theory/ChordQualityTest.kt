@@ -35,7 +35,7 @@ class ChordQualityTest {
         @JvmStatic
         fun cases(): Stream<Arguments> = Stream.of(
             //          label         quality                  symbol  root  3rd  5th   7th
-            Arguments.of("Maj7",     ChordQuality.Maj7,     "Maj7",   0,   4,   7,   11),
+            Arguments.of("Maj7",     ChordQuality.Maj7,     "△7",     0,   4,   7,   11),
             Arguments.of("Min7",     ChordQuality.Min7,     "m7",     0,   3,   7,   10),
             Arguments.of("Dom7",     ChordQuality.Dom7,     "7",      0,   4,   7,   10),
             Arguments.of("HalfDim7", ChordQuality.HalfDim7, "ø7",    0,   3,   6,   10),
