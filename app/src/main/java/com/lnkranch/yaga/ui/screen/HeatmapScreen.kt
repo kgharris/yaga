@@ -2,25 +2,20 @@
 package com.lnkranch.yaga.ui.screen
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
@@ -48,31 +43,25 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import com.lnkranch.yaga.domain.TONIC_NAMES
 import com.lnkranch.yaga.ui.viewmodel.HeatmapCell
 import com.lnkranch.yaga.ui.viewmodel.HeatmapViewModel
 
 private val colorGreen = Color(0xFF4CAF50)
 private val colorYellow = Color(0xFFFFEB3B)
 
-private fun heatmapCellColor(normalizedScore: Float, errorColor: Color): Color {
-    return if (normalizedScore <= 0.5f) {
+private fun heatmapColor(normalizedScore: Float, errorColor: Color): Color =
+    if (normalizedScore <= 0.5f) {
         lerp(colorGreen, colorYellow, normalizedScore * 2f)
     } else {
         lerp(colorYellow, errorColor, (normalizedScore - 0.5f) * 2f)
     }
-}
 
-// Dialog state sealed class keeps track of which confirmation dialog is showing.
 private sealed interface DialogState {
     data object None : DialogState
     data object ResetMode : DialogState
     data object ResetAll : DialogState
-    data class ResetCell(val tonicName: String, val chordQuality: String, val qualitySymbol: String) : DialogState
+    data class ResetCell(val chordSymbol: String) : DialogState
 }
 
 @Composable
@@ -93,7 +82,7 @@ fun HeatmapScreen(vm: HeatmapViewModel) {
                     Column {
                         Text("Heatmap")
                         Text(
-                            "Performance by chord and key",
+                            "Slowest chords first",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -134,7 +123,6 @@ fun HeatmapScreen(vm: HeatmapViewModel) {
                 .fillMaxSize()
                 .padding(padding),
         ) {
-            // Mode selector — FilterChips, data-driven from availableModes
             if (availableModes.isNotEmpty()) {
                 LazyRow(
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
@@ -150,7 +138,6 @@ fun HeatmapScreen(vm: HeatmapViewModel) {
                 }
             }
 
-            // Grid or empty state
             if (cells.isEmpty()) {
                 Box(
                     modifier = Modifier
@@ -169,18 +156,22 @@ fun HeatmapScreen(vm: HeatmapViewModel) {
                     )
                 }
             } else {
-                HeatmapGrid(
-                    cells = cells,
-                    errorColor = errorColor,
-                    onLongPressCell = { tonicName, chordQuality, qualitySymbol ->
-                        dialogState = DialogState.ResetCell(tonicName, chordQuality, qualitySymbol)
-                    },
-                )
+                LazyColumn(
+                    contentPadding = PaddingValues(vertical = 8.dp),
+                    modifier = Modifier.fillMaxSize(),
+                ) {
+                    items(cells, key = { it.chordSymbol }) { cell ->
+                        ChordRow(
+                            cell = cell,
+                            errorColor = errorColor,
+                            onLongPress = { dialogState = DialogState.ResetCell(cell.chordSymbol) },
+                        )
+                    }
+                }
             }
         }
     }
 
-    // Confirmation dialogs
     when (val state = dialogState) {
         DialogState.None -> Unit
 
@@ -216,11 +207,11 @@ fun HeatmapScreen(vm: HeatmapViewModel) {
 
         is DialogState.ResetCell -> AlertDialog(
             onDismissRequest = { dialogState = DialogState.None },
-            title = { Text("Reset ${state.qualitySymbol} in ${state.tonicName}?") },
-            text = { Text("This will delete all attempts for ${state.qualitySymbol} chords in the key of ${state.tonicName} for the current mode.") },
+            title = { Text("Reset ${state.chordSymbol}?") },
+            text = { Text("This will delete all ${state.chordSymbol} attempts for $selectedMode mode. This cannot be undone.") },
             confirmButton = {
                 TextButton(onClick = {
-                    vm.deleteCell(state.tonicName, state.chordQuality)
+                    vm.deleteCell(state.chordSymbol)
                     dialogState = DialogState.None
                 }) { Text("Reset") }
             },
@@ -232,169 +223,57 @@ fun HeatmapScreen(vm: HeatmapViewModel) {
 }
 
 @Composable
-private fun HeatmapGrid(
-    cells: List<HeatmapCell>,
+private fun ChordRow(
+    cell: HeatmapCell,
     errorColor: Color,
-    onLongPressCell: (tonicName: String, chordQuality: String, qualitySymbol: String) -> Unit,
+    onLongPress: () -> Unit,
 ) {
-    // Build a fast-lookup map: (chordQuality, tonicName) -> HeatmapCell
-    val cellMap: Map<Pair<String, String>, HeatmapCell> =
-        cells.associateBy { it.chordQuality to it.tonicName }
+    val barColor = heatmapColor(cell.normalizedScore, errorColor)
+    val avgSec = cell.avgAdjustedMs / 1000.0
+    val timeLabel = "%.1fs".format(avgSec)
 
-    // Derive distinct chordQuality names in same order as yLabels
-    val qualities: List<String> = cells
-        .map { it.chordQuality }
-        .distinct()
-
-    // Build (qualityName -> qualitySymbol) from populated cells
-    val symbolForQuality: Map<String, String> =
-        cells.associate { it.chordQuality to it.qualitySymbol }
-
-    val yLabelWidth = 40.dp
-    val cellSize = 44.dp
-    val headerHeight = 28.dp
-    val rowHeight = cellSize
-
-    val horizontalScrollState = rememberScrollState()
-
-    Column(modifier = Modifier.fillMaxSize()) {
-        // X-axis header row — scrolls with the grid
-        Row(modifier = Modifier.fillMaxWidth()) {
-            // Spacer to align with Y-axis label column
-            Spacer(modifier = Modifier.width(yLabelWidth))
-            Row(modifier = Modifier.horizontalScroll(horizontalScrollState)) {
-                TONIC_NAMES.forEach { tonic ->
-                    Box(
-                        modifier = Modifier
-                            .size(width = cellSize, height = headerHeight),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            text = tonic,
-                            style = MaterialTheme.typography.labelSmall,
-                            textAlign = TextAlign.Center,
-                            maxLines = 1,
-                        )
-                    }
-                }
-            }
-        }
-
-        // Grid rows — LazyColumn for the Y axis
-        LazyColumn(modifier = Modifier.fillMaxSize()) {
-            items(qualities) { quality ->
-                val symbol = symbolForQuality[quality] ?: quality
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(rowHeight),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    // Y-axis label
-                    Box(
-                        modifier = Modifier
-                            .width(yLabelWidth)
-                            .height(rowHeight),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            text = symbol,
-                            style = MaterialTheme.typography.labelSmall,
-                            fontSize = 10.sp,
-                            textAlign = TextAlign.Center,
-                            maxLines = 1,
-                            overflow = TextOverflow.Clip,
-                        )
-                    }
-
-                    // 12 cells for this quality row — scrolls horizontally
-                    Row(modifier = Modifier.horizontalScroll(horizontalScrollState)) {
-                        TONIC_NAMES.forEach { tonic ->
-                            val cell = cellMap[quality to tonic]
-                            HeatmapCellBox(
-                                cell = cell,
-                                tonicName = tonic,
-                                qualitySymbol = symbol,
-                                chordQuality = quality,
-                                errorColor = errorColor,
-                                cellSize = cellSize,
-                                onLongPress = onLongPressCell,
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun HeatmapCellBox(
-    cell: HeatmapCell?,
-    tonicName: String,
-    qualitySymbol: String,
-    chordQuality: String,
-    errorColor: Color,
-    cellSize: Dp,
-    onLongPress: (tonicName: String, chordQuality: String, qualitySymbol: String) -> Unit,
-) {
-    val backgroundColor: Color
-    val contentColor: Color
-    val borderColor: Color
-
-    if (cell != null) {
-        backgroundColor = heatmapCellColor(cell.normalizedScore, errorColor)
-        contentColor = Color.Black.copy(alpha = 0.87f)
-        borderColor = Color.Transparent
-    } else {
-        backgroundColor = Color.Transparent
-        contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-        borderColor = MaterialTheme.colorScheme.outlineVariant
-    }
-
-    Box(
+    Row(
         modifier = Modifier
-            .size(cellSize)
-            .padding(2.dp)
-            .background(backgroundColor, shape = RoundedCornerShape(4.dp))
-            .border(
-                width = if (cell == null) 1.dp else 0.dp,
-                color = borderColor,
-                shape = RoundedCornerShape(4.dp),
-            )
-            .pointerInput(tonicName, chordQuality) {
-                detectTapGestures(
-                    onLongPress = {
-                        if (cell != null) {
-                            onLongPress(tonicName, chordQuality, qualitySymbol)
-                        }
-                    },
-                )
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp)
+            .pointerInput(cell.chordSymbol) {
+                detectTapGestures(onLongPress = { onLongPress() })
             },
-        contentAlignment = Alignment.Center,
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        if (cell != null) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
-            ) {
-                Text(
-                    text = qualitySymbol,
-                    fontSize = 8.sp,
-                    color = contentColor,
-                    maxLines = 1,
-                    overflow = TextOverflow.Clip,
-                    lineHeight = 9.sp,
-                )
-                Text(
-                    text = tonicName,
-                    fontSize = 8.sp,
-                    color = contentColor,
-                    maxLines = 1,
-                    overflow = TextOverflow.Clip,
-                    lineHeight = 9.sp,
-                )
-            }
+        // Color bar
+        Box(
+            modifier = Modifier
+                .width(8.dp)
+                .height(48.dp)
+                .background(barColor, shape = RoundedCornerShape(4.dp)),
+        )
+
+        // Chord symbol + quality label
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = cell.chordSymbol,
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Text(
+                text = cell.qualitySymbol,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+
+        // Avg time + attempt count
+        Column(horizontalAlignment = Alignment.End) {
+            Text(
+                text = timeLabel,
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Text(
+                text = "${cell.totalAttempts} attempts",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }

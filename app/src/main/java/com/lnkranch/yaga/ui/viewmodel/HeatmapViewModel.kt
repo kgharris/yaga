@@ -10,23 +10,20 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 data class HeatmapCell(
-    val chordQuality: String,       // ChordQuality.name — storage key
-    val qualitySymbol: String,      // ChordQuality.symbol — display (e.g. "△7", "ø7")
-    val tonicName: String,
-    val avgAdjustedMs: Double,      // avg(elapsedMs + misTapCount × 4000)
-    val normalizedScore: Float,     // 0.0 = best (green), 1.0 = worst (red)
+    val chordSymbol: String,         // e.g. "Dm7", "G7", "C△7"
+    val chordQuality: String,        // ChordQuality.name — storage key
+    val qualitySymbol: String,       // ChordQuality.symbol — display (e.g. "△7", "ø7")
+    val avgAdjustedMs: Double,       // avg(elapsedMs + misTapCount × 4000)
+    val normalizedScore: Float,      // 0.0 = best (green), 1.0 = worst (red)
     val totalAttempts: Int,
 )
 
-// Map from ChordQuality.name to ChordQuality.symbol for display labeling.
-// Populated from the engine enum so new qualities appear automatically.
 private val qualitySymbolMap: Map<String, String> =
     ChordQuality.entries.associate { it.name to it.symbol }
 
@@ -42,8 +39,6 @@ class HeatmapViewModel(
     val selectedDrillMode: StateFlow<String> = _selectedDrillMode.asStateFlow()
 
     init {
-        // Whenever the available modes list changes, seed selectedDrillMode with the
-        // first entry (if the current selection is no longer valid or was never set).
         viewModelScope.launch {
             availableModes.collect { modes ->
                 val current = _selectedDrillMode.value
@@ -58,8 +53,6 @@ class HeatmapViewModel(
         _selectedDrillMode.value = mode
     }
 
-    // All attempts for the currently selected mode, reacting to both mode changes and
-    // underlying data changes (inserts / deletes).
     private val attemptsForMode = _selectedDrillMode
         .flatMapLatest { mode ->
             if (mode.isEmpty()) {
@@ -69,62 +62,44 @@ class HeatmapViewModel(
             }
         }
 
-    // Distinct chord qualities for the selected mode, in data order.
-    private val qualitiesForMode = _selectedDrillMode
-        .flatMapLatest { mode ->
-            if (mode.isEmpty()) {
-                kotlinx.coroutines.flow.flowOf(emptyList())
-            } else {
-                repository.distinctChordQualitiesForMode(mode)
-            }
-        }
-
-    // Y-axis labels: the display symbol for each distinct quality in data order.
-    val yLabels: StateFlow<List<String>> = qualitiesForMode
-        .map { qualities ->
-            qualities.map { name -> qualitySymbolMap[name] ?: name }
-        }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
-
+    // Grouped by chordSymbol, sorted worst → best (highest normalizedScore first).
     val cells: StateFlow<List<HeatmapCell>> = attemptsForMode
         .map { attempts ->
             if (attempts.isEmpty()) return@map emptyList()
 
-            // Group attempts by (chordQuality, tonicName) and compute average adjustedMs.
-            data class CellKey(val chordQuality: String, val tonicName: String)
-
-            val grouped = attempts.groupBy { CellKey(it.chordQuality, it.tonicName) }
-            val rawCells = grouped.map { (key, group) ->
-                val avgAdjustedMs = group.map { attempt ->
-                    attempt.elapsedMs + attempt.misTapCount * 4_000L
-                }.average()
-                Triple(key, avgAdjustedMs, group.size)
+            val grouped = attempts.groupBy { it.chordSymbol }
+            val rawCells = grouped.map { (symbol, group) ->
+                val avgAdjustedMs = group.map { it.elapsedMs + it.misTapCount * 4_000L }.average()
+                val quality = group.first().chordQuality
+                Triple(symbol to quality, avgAdjustedMs, group.size)
             }
 
-            // Normalize relative to the player's own data range.
             val minMs = rawCells.minOf { it.second }
             val maxMs = rawCells.maxOf { it.second }
             val range = maxMs - minMs
 
-            rawCells.map { (key, avgMs, count) ->
-                val normalizedScore = if (range == 0.0) 0.0f else ((avgMs - minMs) / range).toFloat()
-                HeatmapCell(
-                    chordQuality = key.chordQuality,
-                    qualitySymbol = qualitySymbolMap[key.chordQuality] ?: key.chordQuality,
-                    tonicName = key.tonicName,
-                    avgAdjustedMs = avgMs,
-                    normalizedScore = normalizedScore,
-                    totalAttempts = count,
-                )
-            }
+            rawCells
+                .map { (symbolAndQuality, avgMs, count) ->
+                    val (symbol, quality) = symbolAndQuality
+                    val normalizedScore = if (range == 0.0) 0.0f else ((avgMs - minMs) / range).toFloat()
+                    HeatmapCell(
+                        chordSymbol = symbol,
+                        chordQuality = quality,
+                        qualitySymbol = qualitySymbolMap[quality] ?: quality,
+                        avgAdjustedMs = avgMs,
+                        normalizedScore = normalizedScore,
+                        totalAttempts = count,
+                    )
+                }
+                .sortedByDescending { it.normalizedScore }
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    fun deleteCell(tonicName: String, chordQuality: String) {
+    fun deleteCell(chordSymbol: String) {
         val mode = _selectedDrillMode.value
         if (mode.isEmpty()) return
         viewModelScope.launch {
-            repository.deleteAttemptsForCell(tonicName, chordQuality, mode)
+            repository.deleteAttemptsForCell(chordSymbol, mode)
         }
     }
 
