@@ -68,7 +68,9 @@ class DrillViewModel(
     val uiState: StateFlow<DrillUiState> = _uiState.asStateFlow()
 
     private var chords: List<ResolvedChord> = emptyList()
-    private var noteButtons: List<NoteButton> = emptyList()
+    private var tonicSemitone = 0
+    private var baseNoteButtons: List<NoteButton> = emptyList()
+    private var currentNoteButtons: List<NoteButton> = emptyList()
     private var currentIndex = 0
     private var tappedThird = false
     private var tappedSeventh = false
@@ -109,12 +111,14 @@ class DrillViewModel(
             )
         }
 
-        noteButtons = (0..11).map { offset ->
+        tonicSemitone = key.tonicSemitone
+        baseNoteButtons = (0..11).map { offset ->
             NoteButton(
                 label = key.spell((key.tonicSemitone + offset) % 12),
                 semitoneOffset = offset,
             )
         }
+        currentNoteButtons = buildShuffledButtonsForChord(chords.first())
 
         sessionStartMs = System.currentTimeMillis()
         chordStartMs = sessionStartMs
@@ -191,6 +195,7 @@ class DrillViewModel(
         }
         tappedThird = false
         tappedSeventh = false
+        currentNoteButtons = buildShuffledButtonsForChord(chords[currentIndex])
         emitRunningState()
     }
 
@@ -230,7 +235,7 @@ class DrillViewModel(
             currentChord = chords[currentIndex],
             currentIndex = currentIndex,
             totalChords = chords.size,
-            noteButtons = noteButtons,
+            noteButtons = currentNoteButtons,
             tappedThird = tappedThird,
             tappedSeventh = tappedSeventh,
             elapsedMs = if (sessionStartMs == 0L) 0L else System.currentTimeMillis() - sessionStartMs,
@@ -240,7 +245,30 @@ class DrillViewModel(
         )
     }
 
+    // Applies chord-tone spelling overrides for the 3rd and 7th buttons (so e.g. "Bbb"
+    // appears instead of "Ab" for Gbdim7), then shuffles to eliminate positional cues.
+    private fun buildShuffledButtonsForChord(chord: ResolvedChord): List<NoteButton> {
+        if (chord.third.isEmpty() || chord.seventh.isEmpty()) return baseNoteButtons.shuffled()
+        val thirdSemitone = noteNameToSemitone(chord.third)
+        val seventhSemitone = noteNameToSemitone(chord.seventh)
+        return baseNoteButtons.map { button ->
+            val semitone = (tonicSemitone + button.semitoneOffset) % 12
+            val label = when (semitone) {
+                thirdSemitone -> chord.third
+                seventhSemitone -> chord.seventh
+                else -> button.label
+            }
+            button.copy(label = label)
+        }.shuffled()
+    }
+
     companion object {
+        private fun noteNameToSemitone(name: String): Int {
+            val base = mapOf('C' to 0, 'D' to 2, 'E' to 4, 'F' to 5, 'G' to 7, 'A' to 9, 'B' to 11)
+            val sharps = name.count { it == '#' }
+            val flats = name.count { it == 'b' }
+            return ((base.getValue(name[0]) + sharps - flats) + 120) % 12
+        }
         fun Factory(repository: DrillRepository, progressionId: Long, tonicName: String, drillMode: DrillMode) =
             object : ViewModelProvider.Factory {
                 override fun <T : ViewModel> create(modelClass: Class<T>): T {
