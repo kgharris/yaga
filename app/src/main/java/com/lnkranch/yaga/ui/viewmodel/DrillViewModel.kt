@@ -11,6 +11,7 @@ import com.lnkranch.yaga.domain.ScoreCalculator
 import com.lnkranch.yaga.domain.findKey
 import com.lnkranch.yaga.theory.Chord
 import com.lnkranch.yaga.theory.Mode
+import com.lnkranch.yaga.theory.noteNameToSemitone
 import com.lnkranch.yaga.theory.ResolvedChord
 import com.lnkranch.yaga.theory.RomanChord
 import com.lnkranch.yaga.theory.TheoryEngine
@@ -255,12 +256,6 @@ class DrillViewModel(
     }
 
     companion object {
-        private fun noteNameToSemitone(name: String): Int {
-            val base = mapOf('C' to 0, 'D' to 2, 'E' to 4, 'F' to 5, 'G' to 7, 'A' to 9, 'B' to 11)
-            val sharps = name.count { it == '#' }
-            val flats = name.count { it == 'b' }
-            return ((base.getValue(name[0]) + sharps - flats) + 120) % 12
-        }
         fun Factory(repository: DrillRepository, progressionId: Long, tonicName: String, drillMode: DrillMode) =
             object : ViewModelProvider.Factory {
                 override fun <T : ViewModel> create(modelClass: Class<T>): T {

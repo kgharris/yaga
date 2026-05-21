@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.lnkranch.yaga.data.repository.DrillRepository
+import com.lnkranch.yaga.domain.HeatmapScorer
 import com.lnkranch.yaga.theory.Chord
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -69,19 +70,17 @@ class HeatmapViewModel(
 
             val grouped = attempts.groupBy { it.chordSymbol }
             val rawCells = grouped.map { (symbol, group) ->
-                val avgAdjustedMs = group.map { it.elapsedMs + it.misTapCount * 4_000L }.average()
+                val avgAdjustedMs = group.map { HeatmapScorer.adjustedMs(it.elapsedMs, it.misTapCount) }.average()
                 val quality = group.first().chordQuality
                 Triple(symbol to quality, avgAdjustedMs, group.size)
             }
 
-            val minMs = rawCells.minOf { it.second }
-            val maxMs = rawCells.maxOf { it.second }
-            val range = maxMs - minMs
+            val normalizedScores = HeatmapScorer.normalize(rawCells.map { it.second })
 
-            rawCells
-                .map { (symbolAndQuality, avgMs, count) ->
+            rawCells.zip(normalizedScores)
+                .map { (raw, normalizedScore) ->
+                    val (symbolAndQuality, avgMs, count) = raw
                     val (symbol, quality) = symbolAndQuality
-                    val normalizedScore = if (range == 0.0) 0.0f else ((avgMs - minMs) / range).toFloat()
                     HeatmapCell(
                         chordSymbol = symbol,
                         chordQuality = quality,
