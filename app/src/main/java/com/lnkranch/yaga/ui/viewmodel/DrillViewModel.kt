@@ -7,11 +7,11 @@ import com.lnkranch.yaga.data.db.entity.ChordAttemptEntity
 import com.lnkranch.yaga.data.db.entity.SessionResultEntity
 import com.lnkranch.yaga.data.repository.DrillRepository
 import com.lnkranch.yaga.domain.DrillMode
-import com.lnkranch.yaga.domain.ResolvedChord
 import com.lnkranch.yaga.domain.ScoreCalculator
 import com.lnkranch.yaga.domain.findKey
-import com.lnkranch.yaga.theory.ChordQuality
+import com.lnkranch.yaga.theory.Chord
 import com.lnkranch.yaga.theory.Mode
+import com.lnkranch.yaga.theory.ResolvedChord
 import com.lnkranch.yaga.theory.RomanChord
 import com.lnkranch.yaga.theory.TheoryEngine
 import kotlinx.coroutines.Job
@@ -100,16 +100,7 @@ class DrillViewModel(
         progressionName = entity.name
 
         val romanChords = Json.decodeFromString<List<RomanChord>>(entity.chordsJson)
-        chords = romanChords.map { rc ->
-            val result = engine.resolve(key, rc)
-            ResolvedChord(
-                romanChord = rc.romanNumeral,
-                chordQuality = rc.quality.name,
-                symbol = result.symbol,
-                third = result[ChordQuality.Tone._3rd] ?: "",
-                seventh = result[ChordQuality.Tone._7th] ?: "",
-            )
-        }
+        chords = romanChords.map { rc -> engine.resolve(key, rc) }
 
         tonicSemitone = key.tonicSemitone
         baseNoteButtons = (0..11).map { offset ->
@@ -176,11 +167,12 @@ class DrillViewModel(
     }
 
     private fun advanceChord() {
+        val current = chords[currentIndex]
         chordAttempts.add(ChordAttemptEntity(
             sessionId = 0L,
-            chordQuality = chords[currentIndex].chordQuality,
-            romanChord = chords[currentIndex].romanChord,
-            chordSymbol = chords[currentIndex].symbol,
+            chordQuality = current.chord::class.simpleName ?: "",
+            romanChord = current.romanNumeral,
+            chordSymbol = current.symbol,
             tonicName = tonicName,
             drillMode = drillMode.name,
             elapsedMs = System.currentTimeMillis() - chordStartMs,

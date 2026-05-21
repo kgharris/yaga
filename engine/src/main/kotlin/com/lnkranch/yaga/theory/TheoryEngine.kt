@@ -1,12 +1,5 @@
 package com.lnkranch.yaga.theory
 
-data class ChordResult(
-    val symbol: String,
-    private val tones: Map<ChordQuality.Tone, String>,
-) {
-    operator fun get(tone: ChordQuality.Tone): String? = tones[tone]
-}
-
 class TheoryEngine {
 
     /**
@@ -17,21 +10,23 @@ class TheoryEngine {
      * the letter two steps above the root, the 5th four steps, the 7th six steps,
      * regardless of the key signature.
      */
-    fun resolve(key: Key, degree: RomanChord): ChordResult {
+    fun resolve(key: Key, degree: RomanChord): ResolvedChord {
         val rootSemitone = (key.tonicSemitone + key.diatonicSemitone(degree.degree) + degree.alteration).mod(12)
         val rootName     = key.spell(rootSemitone)
 
-        val tones = ChordQuality.Tone.entries
+        val tones = Chord.Tone.entries
             .mapNotNull { tone ->
-                degree.quality[tone]?.let { offset ->
+                degree.chord[tone]?.let { offset ->
                     tone to spellTone(rootName, tone.ordinal, (rootSemitone + offset).mod(12))
                 }
             }
             .toMap()
 
-        return ChordResult(
-            symbol = rootName + degree.quality.symbol,
-            tones  = tones,
+        return ResolvedChord(
+            romanNumeral = degree.romanNumeral,
+            chord        = degree.chord,
+            symbol       = rootName + degree.chord.symbol,
+            tones        = tones,
         )
     }
 
@@ -39,7 +34,7 @@ class TheoryEngine {
         private const val LETTERS = "CDEFGAB"
         private val NATURAL_SEMITONES = intArrayOf(0, 2, 4, 5, 7, 9, 11)
 
-        // Letter offset from root for each ChordQuality.Tone ordinal:
+        // Letter offset from root for each Chord.Tone ordinal:
         // _root=0 _3rd=1 _5th=2 _7th=3 _9th=4 _11th=5 _13th=6
         private val TONE_LETTER_OFFSETS = intArrayOf(0, 2, 4, 6, 1, 3, 5)
 

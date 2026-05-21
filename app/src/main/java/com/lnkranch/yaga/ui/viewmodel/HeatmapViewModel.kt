@@ -4,7 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.lnkranch.yaga.data.repository.DrillRepository
-import com.lnkranch.yaga.theory.ChordQuality
+import com.lnkranch.yaga.theory.Chord
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -17,15 +17,15 @@ import kotlinx.coroutines.launch
 
 data class HeatmapCell(
     val chordSymbol: String,         // e.g. "Dm7", "G7", "C△7"
-    val chordQuality: String,        // ChordQuality.name — storage key
-    val qualitySymbol: String,       // ChordQuality.symbol — display (e.g. "△7", "ø7")
+    val chordQuality: String,        // Chord class simple name — storage key (e.g. "Maj7", "Min7")
+    val qualitySymbol: String,       // Chord.symbol — display (e.g. "△7", "ø7")
     val avgAdjustedMs: Double,       // avg(elapsedMs + misTapCount × 4000)
     val normalizedScore: Float,      // 0.0 = best (green), 1.0 = worst (red)
     val totalAttempts: Int,
 )
 
 private val qualitySymbolMap: Map<String, String> =
-    ChordQuality.entries.associate { it.name to it.symbol }
+    Chord.all.associate { (it::class.simpleName ?: "") to it.symbol }
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class HeatmapViewModel(

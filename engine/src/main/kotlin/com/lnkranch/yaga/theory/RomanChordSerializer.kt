@@ -16,6 +16,14 @@ object RomanChordSerializer : KSerializer<RomanChord> {
     private val byRomanNumeral: Map<String, RomanChord> =
         RomanChord.entries.associateBy { it.romanNumeral }
 
+    private val chordByName = mapOf(
+        "Maj7"     to Chord.Maj7,
+        "Min7"     to Chord.Min7,
+        "Dom7"     to Chord.Dom7,
+        "HalfDim7" to Chord.HalfDim7,
+        "FullDim7" to Chord.FullDim7,
+    )
+
     override fun serialize(encoder: Encoder, value: RomanChord) {
         encoder.encodeString(value.romanNumeral)
     }

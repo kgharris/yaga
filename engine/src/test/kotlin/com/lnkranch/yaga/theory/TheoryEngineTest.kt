@@ -26,17 +26,62 @@ class TheoryEngineTest {
     ) {
         val result = engine.resolve(key, degree)
         assertAll(
-            { assertEquals(expectedSymbol,  result.symbol,                         "$label: symbol") },
-            { assertEquals(expectedRoot,    result[ChordQuality.Tone._root],       "$label: root") },
-            { assertEquals(expectedThird,   result[ChordQuality.Tone._3rd],        "$label: third") },
-            { assertEquals(expectedSeventh, result[ChordQuality.Tone._7th],        "$label: seventh") },
+            { assertEquals(expectedSymbol,  result.symbol,              "$label: symbol") },
+            { assertEquals(expectedRoot,    result[Chord.Tone._root],   "$label: root") },
+            { assertEquals(expectedThird,   result[Chord.Tone._3rd],    "$label: third") },
+            { assertEquals(expectedSeventh, result[Chord.Tone._7th],    "$label: seventh") },
         )
     }
 
     @Test
     fun `querying absent tone returns null`() {
         val result = engine.resolve(Key.C_MAJOR, RomanChord.I)
-        assertNull(result[ChordQuality.Tone._9th])
+        assertNull(result[Chord.Tone._9th])
+    }
+
+    @Test
+    fun `resolved chord convenience properties match tones`() {
+        val result = engine.resolve(Key.C_MAJOR, RomanChord.II)
+        assertAll(
+            { assertEquals("D", result.root,    "root convenience property") },
+            { assertEquals("F", result.third,   "third convenience property") },
+            { assertEquals("C", result.seventh, "seventh convenience property") },
+        )
+    }
+
+    @Test
+    fun `resolved chord romanNumeral and chord fields are correct`() {
+        val result = engine.resolve(Key.C_MAJOR, RomanChord.I)
+        assertAll(
+            { assertEquals("I",        result.romanNumeral, "romanNumeral") },
+            { assertEquals(Chord.Maj7, result.chord,        "chord") },
+        )
+    }
+
+    @Test
+    fun `resolved chord tones map is accessible and contains expected entries`() {
+        val result = engine.resolve(Key.C_MAJOR, RomanChord.II)
+        val tones = result.tones
+        assertAll(
+            { assertEquals("D", tones[Chord.Tone._root], "tones map root") },
+            { assertEquals("F", tones[Chord.Tone._3rd],  "tones map third") },
+            { assertEquals("C", tones[Chord.Tone._7th],  "tones map seventh") },
+        )
+    }
+
+    @Test
+    fun `resolved chord convenience properties return empty string when tone absent`() {
+        val sparse = ResolvedChord(
+            romanNumeral = "I",
+            chord        = Chord.Maj7,
+            symbol       = "C△7",
+            tones        = emptyMap(),
+        )
+        assertAll(
+            { assertEquals("", sparse.root,    "root absent → empty string") },
+            { assertEquals("", sparse.third,   "third absent → empty string") },
+            { assertEquals("", sparse.seventh, "seventh absent → empty string") },
+        )
     }
 
     companion object {

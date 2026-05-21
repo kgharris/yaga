@@ -32,7 +32,8 @@ import com.lnkranch.yaga.ui.viewmodel.NoteButton
 import com.lnkranch.yaga.ui.viewmodel.NoteFeedback
 
 import androidx.compose.ui.tooling.preview.Preview
-import com.lnkranch.yaga.domain.ResolvedChord
+import com.lnkranch.yaga.theory.Chord
+import com.lnkranch.yaga.theory.ResolvedChord
 import com.lnkranch.yaga.ui.theme.ChordToneDrillTheme
 
 @Composable
@@ -77,7 +78,17 @@ fun DrillScreenPreview() {
         DrillScreenContent(
             uiState = DrillUiState.Running(
                 progressionName = "Major 2-5-1",
-                currentChord = ResolvedChord("ii", "Min7", "Dm7", "F", "C"),
+                currentChord = ResolvedChord(
+                    romanNumeral = "ii",
+                    chord = Chord.Min7,
+                    symbol = "Dm7",
+                    tones = mapOf(
+                        Chord.Tone._root to "D",
+                        Chord.Tone._3rd  to "F",
+                        Chord.Tone._5th  to "A",
+                        Chord.Tone._7th  to "C",
+                    ),
+                ),
                 currentIndex = 0,
                 totalChords = 3,
                 noteButtons = listOf(
