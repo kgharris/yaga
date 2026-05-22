@@ -5,7 +5,12 @@ import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.view.HapticFeedbackConstants
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -33,10 +38,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalView
+import kotlinx.coroutines.delay
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.lnkranch.yaga.domain.DrillInputMode
@@ -260,6 +268,10 @@ private fun RunningContent(
     }
 }
 
+private const val NoteGridShuffleDelayMs = 500L
+private val NoteKeyHeight = 60.dp
+private val NoteGridHeight = NoteKeyHeight * 2 + 4.dp
+
 @Composable
 private fun NoteGrid(
     noteButtons: List<NoteButton>,
@@ -268,34 +280,40 @@ private fun NoteGrid(
     feedbackType: NoteFeedback?,
     onTap: (Int) -> Unit,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(3.dp),
-        ) {
-            noteButtons.take(6).forEach { btn ->
-                NoteKey(
-                    btn = btn,
-                    isTapped = btn.semitone in tappedSemitones,
-                    feedback = if (btn.semitone == feedbackSemitone) feedbackType else null,
-                    modifier = Modifier.weight(1f),
-                    onTap = onTap,
-                )
-            }
-        }
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(3.dp),
-        ) {
-            noteButtons.drop(6).forEach { btn ->
-                NoteKey(
-                    btn = btn,
-                    isTapped = btn.semitone in tappedSemitones,
-                    feedback = if (btn.semitone == feedbackSemitone) feedbackType else null,
-                    modifier = Modifier.weight(1f),
-                    onTap = onTap,
-                )
-            }
+    var displayedButtons by remember { mutableStateOf(noteButtons.sortedBy { it.semitone }) }
+    val semitoneKey = remember(noteButtons) { noteButtons.map { it.semitone } }
+
+    LaunchedEffect(semitoneKey) {
+        displayedButtons = noteButtons.sortedBy { it.semitone }
+        delay(NoteGridShuffleDelayMs)
+        displayedButtons = noteButtons
+    }
+
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(6),
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(NoteGridHeight),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        userScrollEnabled = false,
+    ) {
+        items(
+            items = displayedButtons,
+            key = { it.semitone },
+        ) { btn ->
+            NoteKey(
+                btn = btn,
+                isTapped = btn.semitone in tappedSemitones,
+                feedback = if (feedbackSemitone == btn.semitone) feedbackType else null,
+                modifier = Modifier.animateItem(
+                    placementSpec = spring(
+                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                        stiffness = Spring.StiffnessMediumLow,
+                    )
+                ),
+                onTap = onTap,
+            )
         }
     }
 }
@@ -350,7 +368,7 @@ private fun FretboardNoteKey(
     Button(
         onClick = {},
         enabled = false,
-        modifier = modifier.height(60.dp),
+        modifier = modifier.height(NoteKeyHeight),
         colors = colors,
         shape = RoundedCornerShape(6.dp),
         contentPadding = PaddingValues(0.dp),
@@ -389,7 +407,7 @@ private fun NoteKey(
 
     Button(
         onClick = { onTap(btn.semitone) },
-        modifier = modifier.height(60.dp),
+        modifier = modifier.height(NoteKeyHeight),
         colors = colors,
         shape = RoundedCornerShape(6.dp),
         contentPadding = PaddingValues(0.dp),
