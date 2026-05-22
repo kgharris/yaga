@@ -18,6 +18,13 @@ class SettingsViewModel(private val settings: SettingsRepository) : ViewModel() 
         viewModelScope.launch { settings.setPlayingPosition(value) }
     }
 
+    val correctDisplayMs: StateFlow<Int> = settings.correctDisplayMs
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SettingsRepository.CORRECT_DISPLAY_MS_DEFAULT)
+
+    fun setCorrectDisplayMs(value: Int) {
+        viewModelScope.launch { settings.setCorrectDisplayMs(value) }
+    }
+
     companion object {
         fun Factory(settings: SettingsRepository) = object : ViewModelProvider.Factory {
             override fun <T : ViewModel> create(modelClass: Class<T>): T {

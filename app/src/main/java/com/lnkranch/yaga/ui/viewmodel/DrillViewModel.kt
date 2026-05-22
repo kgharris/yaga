@@ -103,6 +103,7 @@ class DrillViewModel(
     private val chordAttempts: MutableList<ChordAttemptEntity> = mutableListOf()
     private var drillInputMode: DrillInputMode = DrillInputMode.Buttons
     private var playingPosition: Int = 1
+    private var correctDisplayMs: Long = 1000L
     private var currentFretboardNotes: List<FretboardNote> = emptyList()
     private lateinit var key: com.lnkranch.yaga.theory.Key
     private var errorFretPosition: FretPosition? = null
@@ -132,6 +133,7 @@ class DrillViewModel(
         }
         drillInputMode = inputMode
         playingPosition = settingsRepository.playingPosition.first()
+        correctDisplayMs = settingsRepository.correctDisplayMs.first().toLong()
         currentFretboardNotes = buildFretboardNotesForChord(chords.first())
         currentNoteButtons = buildShuffledButtonsForChord(chords.first())
 
@@ -218,7 +220,7 @@ class DrillViewModel(
         isPaused = true
         pauseStartMs = System.currentTimeMillis()
         viewModelScope.launch {
-            delay(1_000)
+            delay(correctDisplayMs)
             totalPausedMs += System.currentTimeMillis() - pauseStartMs
             isPaused = false
             feedbackClearJob?.cancel()
