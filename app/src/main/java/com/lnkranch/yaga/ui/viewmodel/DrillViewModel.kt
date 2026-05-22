@@ -30,7 +30,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 
@@ -60,6 +59,7 @@ sealed interface DrillUiState {
         val playingPosition: Int,
         val inputMode: DrillInputMode,
         val errorFretPosition: FretPosition? = null,
+        val isPaused: Boolean = false,
     ) : DrillUiState
     data class Complete(
         val sessionResult: SessionResultEntity,
@@ -102,6 +102,7 @@ class DrillViewModel(
     private var progressionName = ""
     private var timerJob: Job? = null
     private var isPaused = false
+    private var isUserPaused = false
     private var pauseStartMs: Long = 0L
     private var totalPausedMs: Long = 0L
     private var chordStartMs: Long = 0L
@@ -147,8 +148,13 @@ class DrillViewModel(
         chordStartMs = sessionStartMs
         emitRunningState()
 
+        startTimer()
+    }
+
+    private fun startTimer() {
+        timerJob?.cancel()
         timerJob = viewModelScope.launch {
-            while (isActive) {
+            while (true) {
                 delay(TIMER_UPDATE_INTERVAL_MS)
                 emitRunningState()
             }
@@ -211,6 +217,21 @@ class DrillViewModel(
         tap(FretboardLocator.semitoneAt(string, fret), FretPosition(string, fret))
     }
 
+    fun togglePause() {
+        if (isUserPaused) {
+            totalPausedMs += System.currentTimeMillis() - pauseStartMs
+            isPaused = false
+            isUserPaused = false
+            startTimer()
+        } else {
+            isPaused = true
+            isUserPaused = true
+            pauseStartMs = System.currentTimeMillis()
+            timerJob?.cancel()
+        }
+        emitRunningState()
+    }
+
     private fun showFeedback(semitone: Int, type: NoteFeedback) {
         _hapticEvent.tryEmit(type)
         feedbackSemitone = semitone
@@ -225,16 +246,16 @@ class DrillViewModel(
 
     private fun startFlashPause(onResume: () -> Unit) {
         isPaused = true
-        pauseStartMs = System.currentTimeMillis()
+        val flashStart = System.currentTimeMillis()
         viewModelScope.launch {
             delay(correctDisplayMs)
-            totalPausedMs += System.currentTimeMillis() - pauseStartMs
-            isPaused = false
+            totalPausedMs += System.currentTimeMillis() - flashStart
+            if (!isUserPaused) isPaused = false
             feedbackClearJob?.cancel()
             feedbackSemitone = null
             feedbackType = null
             errorFretPosition = null
-            onResume()
+            if (!isUserPaused) onResume()
         }
     }
 
@@ -332,6 +353,7 @@ class DrillViewModel(
             playingPosition = playingPosition,
             inputMode = drillInputMode,
             errorFretPosition = errorFretPosition,
+            isPaused = isUserPaused,
         )
     }
 

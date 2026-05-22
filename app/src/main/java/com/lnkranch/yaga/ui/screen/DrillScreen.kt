@@ -5,6 +5,8 @@ import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.view.HapticFeedbackConstants
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.systemBarsPadding
@@ -17,9 +19,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -90,7 +97,7 @@ fun DrillScreen(
         }
     }
 
-    DrillScreenContent(uiState = uiState, onTap = { sem -> vm.tap(sem) }, onFretTap = vm::tapFret)
+    DrillScreenContent(uiState = uiState, onTap = { sem -> vm.tap(sem) }, onFretTap = vm::tapFret, onTogglePause = vm::togglePause)
 }
 
 @Composable
@@ -98,6 +105,7 @@ fun DrillScreenContent(
     uiState: DrillUiState,
     onTap: (Int) -> Unit,
     onFretTap: (Int, Int) -> Unit,
+    onTogglePause: () -> Unit = {},
 ) {
     when (val state = uiState) {
         DrillUiState.Loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -106,7 +114,7 @@ fun DrillScreenContent(
         DrillUiState.Error -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Text("Failed to load session", style = MaterialTheme.typography.bodyLarge)
         }
-        is DrillUiState.Running -> RunningContent(state = state, onTap = onTap, onFretTap = onFretTap)
+        is DrillUiState.Running -> RunningContent(state = state, onTap = onTap, onFretTap = onFretTap, onTogglePause = onTogglePause)
         is DrillUiState.Complete -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             CircularProgressIndicator()
         }
@@ -160,6 +168,7 @@ private fun RunningContent(
     state: DrillUiState.Running,
     onTap: (Int) -> Unit,
     onFretTap: (Int, Int) -> Unit,
+    onTogglePause: () -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -168,23 +177,30 @@ private fun RunningContent(
             .padding(horizontal = 16.dp, vertical = 24.dp),
     ) {
         // Zone 1 — Chord zone (top, natural height)
-        // Header: timer | progress | errors
+        // Header: timer | progress | errors | pause
         Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
                 formatTime(state.elapsedMs),
                 style = MaterialTheme.typography.titleMedium,
             )
+            Spacer(Modifier.weight(1f))
             Text(
                 "${state.currentIndex + 1} / ${state.totalChords}",
                 style = MaterialTheme.typography.titleMedium,
             )
             Text(
-                "err: ${state.misTapCount}",
+                "  err: ${state.misTapCount}",
                 style = MaterialTheme.typography.titleMedium,
             )
+            IconButton(onClick = onTogglePause) {
+                Icon(
+                    imageVector = if (state.isPaused) Icons.Default.PlayArrow else Icons.Default.Pause,
+                    contentDescription = if (state.isPaused) "Resume" else "Pause",
+                )
+            }
         }
 
         // Chord symbol
@@ -195,31 +211,51 @@ private fun RunningContent(
             modifier = Modifier.fillMaxWidth(),
         )
 
-        // Zone 2 — Fretboard zone (middle, fills remaining space)
-        FretboardDisplay(
-            dots = state.fretDots,
-            playingPosition = state.playingPosition,
-            tappable = state.inputMode == DrillInputMode.Fretboard,
-            errorDot = state.errorFretPosition,
-            onFretTap = if (state.inputMode == DrillInputMode.Fretboard) onFretTap else null,
-            modifier = Modifier.fillMaxWidth(),
-        )
+        // Zone 2 & 3 — Fretboard + input zone wrapped in Box for pause overlay
+        Box(modifier = Modifier.weight(1f)) {
+            Column {
+                // Zone 2 — Fretboard zone (middle, fills remaining space)
+                FretboardDisplay(
+                    dots = state.fretDots,
+                    playingPosition = state.playingPosition,
+                    tappable = state.inputMode == DrillInputMode.Fretboard,
+                    errorDot = state.errorFretPosition,
+                    onFretTap = if (state.inputMode == DrillInputMode.Fretboard) onFretTap else null,
+                    modifier = Modifier.fillMaxWidth(),
+                )
 
-        Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(24.dp))
 
-        // Zone 3 — Input zone (bottom, natural height)
-        when (state.inputMode) {
-            DrillInputMode.Buttons -> NoteGrid(
-                noteButtons = state.noteButtons,
-                tappedSemitones = state.tappedSemitones,
-                feedbackSemitone = state.feedbackSemitone,
-                feedbackType = state.feedbackType,
-                onTap = onTap,
-            )
-            DrillInputMode.Fretboard -> FretboardNoteGrid(
-                noteButtons = state.noteButtons,
-                revealedSemitones = state.revealedSemitones,
-            )
+                // Zone 3 — Input zone (bottom, natural height)
+                when (state.inputMode) {
+                    DrillInputMode.Buttons -> NoteGrid(
+                        noteButtons = state.noteButtons,
+                        tappedSemitones = state.tappedSemitones,
+                        feedbackSemitone = state.feedbackSemitone,
+                        feedbackType = state.feedbackType,
+                        onTap = onTap,
+                    )
+                    DrillInputMode.Fretboard -> FretboardNoteGrid(
+                        noteButtons = state.noteButtons,
+                        revealedSemitones = state.revealedSemitones,
+                    )
+                }
+            }
+            if (state.isPaused) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.75f))
+                        .clickable(enabled = false) {},
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = "Paused",
+                        style = MaterialTheme.typography.displaySmall,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                }
+            }
         }
     }
 }
