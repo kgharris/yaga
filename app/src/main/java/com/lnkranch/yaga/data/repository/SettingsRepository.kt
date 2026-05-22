@@ -4,13 +4,29 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
+import com.lnkranch.yaga.domain.DrillInputMode
+import com.lnkranch.yaga.domain.DrillMode
+import com.lnkranch.yaga.domain.TONIC_NAMES
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
+
+@Serializable
+data class SetupPrefs(
+    val tonic: String = TONIC_NAMES.first(),
+    val progressionId: Long? = null,
+    val drillMode: String = DrillMode.Normal.name,
+    val inputMode: String = DrillInputMode.Buttons.name,
+)
 
 class SettingsRepository(private val dataStore: DataStore<Preferences>) {
     companion object {
         val PLAYING_POSITION = intPreferencesKey("playing_position")
         val CORRECT_DISPLAY_MS = intPreferencesKey("correct_display_ms")
+        private val SETUP_PREFS = stringPreferencesKey("setup_prefs")
 
         const val PLAYING_POSITION_MIN = 1
         const val PLAYING_POSITION_MAX = 17
@@ -37,5 +53,15 @@ class SettingsRepository(private val dataStore: DataStore<Preferences>) {
         dataStore.edit {
             it[CORRECT_DISPLAY_MS] = value.coerceAtLeast(CORRECT_DISPLAY_MS_MIN)
         }
+    }
+
+    val setupPrefs: Flow<SetupPrefs> = dataStore.data.map { prefs ->
+        prefs[SETUP_PREFS]
+            ?.let { runCatching { Json.decodeFromString<SetupPrefs>(it) }.getOrNull() }
+            ?: SetupPrefs()
+    }
+
+    suspend fun setSetupPrefs(prefs: SetupPrefs) {
+        dataStore.edit { it[SETUP_PREFS] = Json.encodeToString(prefs) }
     }
 }

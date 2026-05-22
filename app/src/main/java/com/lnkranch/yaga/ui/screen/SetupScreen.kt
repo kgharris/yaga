@@ -130,7 +130,7 @@ fun SetupScreenContent(
                     onClick = onStartDrill,
                     enabled = canStart,
                     modifier = Modifier.fillMaxWidth(),
-                ) { Text("Start Drill") }
+                ) { Text("Chord Drill") }
             }
         },
     ) { padding ->

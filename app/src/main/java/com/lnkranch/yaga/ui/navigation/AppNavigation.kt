@@ -40,7 +40,7 @@ fun AppNavigation(app: DrillApplication) {
         }
 
         composable("setup") {
-            val vm: SetupViewModel = viewModel(factory = SetupViewModel.Factory(app.repository))
+            val vm: SetupViewModel = viewModel(factory = SetupViewModel.Factory(app.repository, app.settingsRepository))
             SetupScreen(
                 vm = vm,
                 onStartDrill = { progressionId, tonicName, drillMode, inputMode ->

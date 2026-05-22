@@ -5,6 +5,8 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.lnkranch.yaga.data.db.entity.ProgressionEntity
 import com.lnkranch.yaga.data.repository.DrillRepository
+import com.lnkranch.yaga.data.repository.SetupPrefs
+import com.lnkranch.yaga.data.repository.SettingsRepository
 import com.lnkranch.yaga.domain.DrillInputMode
 import com.lnkranch.yaga.domain.DrillMode
 import com.lnkranch.yaga.domain.TONIC_NAMES
@@ -12,9 +14,13 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.take
+import kotlinx.coroutines.launch
 
-class SetupViewModel(repository: DrillRepository) : ViewModel() {
+class SetupViewModel(repository: DrillRepository, private val settings: SettingsRepository) : ViewModel() {
     val progressions: StateFlow<List<ProgressionEntity>> = repository.progressions()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
@@ -36,16 +42,66 @@ class SetupViewModel(repository: DrillRepository) : ViewModel() {
         id != null
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
-    fun selectTonic(tonic: String) { _selectedTonic.value = tonic }
-    fun selectProgression(id: Long) { _selectedProgressionId.value = id }
-    fun selectDrillMode(mode: DrillMode) { _selectedDrillMode.value = mode }
-    fun selectInputMode(mode: DrillInputMode) { _selectedInputMode.value = mode }
+    init {
+        viewModelScope.launch {
+            val saved = settings.setupPrefs.first()
+
+            _selectedTonic.value     = saved.tonic
+            _selectedDrillMode.value = runCatching { DrillMode.valueOf(saved.drillMode) }
+                                           .getOrElse { DrillMode.Normal }
+            _selectedInputMode.value = runCatching { DrillInputMode.valueOf(saved.inputMode) }
+                                           .getOrElse { DrillInputMode.Buttons }
+
+            val savedId = saved.progressionId ?: return@launch
+            progressions
+                .filter { it.isNotEmpty() }
+                .take(1)
+                .collect { list ->
+                    if (list.any { it.id == savedId }) {
+                        _selectedProgressionId.value = savedId
+                    }
+                }
+        }
+    }
+
+    private fun persistPrefs() {
+        viewModelScope.launch {
+            settings.setSetupPrefs(
+                SetupPrefs(
+                    tonic         = _selectedTonic.value,
+                    progressionId = _selectedProgressionId.value,
+                    drillMode     = _selectedDrillMode.value.name,
+                    inputMode     = _selectedInputMode.value.name,
+                )
+            )
+        }
+    }
+
+    fun selectTonic(tonic: String) {
+        _selectedTonic.value = tonic
+        persistPrefs()
+    }
+
+    fun selectProgression(id: Long) {
+        _selectedProgressionId.value = id
+        persistPrefs()
+    }
+
+    fun selectDrillMode(mode: DrillMode) {
+        _selectedDrillMode.value = mode
+        persistPrefs()
+    }
+
+    fun selectInputMode(mode: DrillInputMode) {
+        _selectedInputMode.value = mode
+        persistPrefs()
+    }
 
     companion object {
-        fun Factory(repository: DrillRepository) = object : ViewModelProvider.Factory {
+        fun Factory(repository: DrillRepository, settings: SettingsRepository) = object : ViewModelProvider.Factory {
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
                 @Suppress("UNCHECKED_CAST")
-                return SetupViewModel(repository) as T
+                return SetupViewModel(repository, settings) as T
             }
         }
     }
