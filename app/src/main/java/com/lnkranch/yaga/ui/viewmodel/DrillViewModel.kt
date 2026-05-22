@@ -17,6 +17,7 @@ import com.lnkranch.yaga.theory.Chord
 import com.lnkranch.yaga.theory.FretPosition
 import com.lnkranch.yaga.theory.FretboardLocator
 import com.lnkranch.yaga.theory.intervalFromRoot
+import com.lnkranch.yaga.theory.noteNameToSemitone
 import com.lnkranch.yaga.theory.Mode
 import com.lnkranch.yaga.theory.ResolvedChord
 import com.lnkranch.yaga.theory.RomanChord
@@ -59,7 +60,8 @@ sealed interface DrillUiState {
         val playingPosition: Int,
         val inputMode: DrillInputMode,
         val errorFretPosition: FretPosition? = null,
-        val isPaused: Boolean = false,
+        val isFlashPaused: Boolean = false,
+        val isUserPaused: Boolean = false,
     ) : DrillUiState
     data class Complete(
         val sessionResult: SessionResultEntity,
@@ -92,8 +94,8 @@ class DrillViewModel(
     private var baseNoteButtons: List<NoteButton> = emptyList()
     private var currentNoteButtons: List<NoteButton> = emptyList()
     private var currentIndex = 0
-    private var tappedThird = false
-    private var tappedSeventh = false
+    private var phase: DrillPhase = DrillPhase.AwaitingTap(0)
+    private var orderedTones: List<Chord.Tone> = emptyList()
     private var feedbackSemitone: Int? = null
     private var feedbackType: NoteFeedback? = null
     private var feedbackClearJob: Job? = null
@@ -101,8 +103,6 @@ class DrillViewModel(
     private var sessionStartMs = 0L
     private var progressionName = ""
     private var timerJob: Job? = null
-    private var isPaused = false
-    private var isUserPaused = false
     private var pauseStartMs: Long = 0L
     private var totalPausedMs: Long = 0L
     private var chordStartMs: Long = 0L
@@ -139,6 +139,8 @@ class DrillViewModel(
             NoteButton(label = key.spell(sem), semitone = sem)
         }
         drillInputMode = inputMode
+        orderedTones = if (drillMode == DrillMode.Normal) listOf(Chord.Tone._3rd, Chord.Tone._7th)
+                       else listOf(Chord.Tone._7th, Chord.Tone._3rd)
         playingPosition = settingsRepository.playingPosition.first()
         correctDisplayMs = settingsRepository.correctDisplayMs.first().toLong()
         currentFretboardNotes = buildFretboardNotesForChord(chords.first())
@@ -162,8 +164,8 @@ class DrillViewModel(
     }
 
     fun tap(semitone: Int, fretPosition: FretPosition? = null) {
-        if (_uiState.value !is DrillUiState.Running) return
-        if (isPaused || currentIndex >= chords.size) return
+        val currentPhase = phase as? DrillPhase.AwaitingTap ?: return
+        if (currentIndex >= chords.size) return
         val chord = chords[currentIndex]
 
         feedbackClearJob?.cancel()
@@ -171,40 +173,24 @@ class DrillViewModel(
         feedbackType = null
         errorFretPosition = null
 
-        val thirdSemitone   = chord.thirdSemitone
-        val seventhSemitone = chord.seventhSemitone
-        val firstTargetSemitone  = if (drillMode == DrillMode.Normal) thirdSemitone else seventhSemitone
-        val secondTargetSemitone = if (drillMode == DrillMode.Normal) seventhSemitone else thirdSemitone
-        val firstDone = if (drillMode == DrillMode.Normal) tappedThird else tappedSeventh
+        val toneIndex = currentPhase.toneIndex
+        val expectedTone = orderedTones[toneIndex]
+        val expectedSemitone = chord.semitoneFor(expectedTone) ?: return
 
-        when {
-            !firstDone && semitone == firstTargetSemitone -> {
-                if (drillMode == DrillMode.Normal) tappedThird = true else tappedSeventh = true
-                val toneRole = if (drillMode == DrillMode.Normal) Chord.Tone._3rd else Chord.Tone._7th
-                currentFretboardNotes = currentFretboardNotes.map {
-                    if (it.toneRole == toneRole) it.copy(revealed = true) else it
-                }
-                showFeedback(semitone, NoteFeedback.Correct)
-                emitRunningState()
-                startFlashPause { emitRunningState() }
+        if (semitone == expectedSemitone) {
+            currentFretboardNotes = currentFretboardNotes.map {
+                if (it.toneRole == expectedTone) it.copy(revealed = true) else it
             }
-            firstDone && semitone == secondTargetSemitone -> {
-                if (drillMode == DrillMode.Normal) tappedSeventh = true else tappedThird = true
-                val toneRole = if (drillMode == DrillMode.Normal) Chord.Tone._7th else Chord.Tone._3rd
-                currentFretboardNotes = currentFretboardNotes.map {
-                    if (it.toneRole == toneRole) it.copy(revealed = true) else it
-                }
-                showFeedback(semitone, NoteFeedback.Correct)
-                emitRunningState()
-                startFlashPause { advanceChord() }
-            }
-            else -> {
-                misTapCount++
-                chordMisTapCount++
-                errorFretPosition = fretPosition
-                showFeedback(semitone, NoteFeedback.Incorrect)
-                emitRunningState()
-            }
+            showFeedback(semitone, NoteFeedback.Correct)
+            phase = DrillPhase.FlashPause(if (toneIndex == orderedTones.lastIndex) null else toneIndex + 1)
+            emitRunningState()
+            startFlashPause()
+        } else {
+            misTapCount++
+            chordMisTapCount++
+            errorFretPosition = fretPosition
+            showFeedback(semitone, NoteFeedback.Incorrect)
+            emitRunningState()
         }
     }
 
@@ -213,21 +199,20 @@ class DrillViewModel(
             .map { FretboardNote(it.position, it.noteName, it.semitone, it.tone, false) }
 
     fun tapFret(string: Int, fret: Int) {
-        if (isPaused || currentIndex >= chords.size) return
         tap(FretboardLocator.semitoneAt(string, fret), FretPosition(string, fret))
     }
 
     fun togglePause() {
-        if (isUserPaused) {
+        val currentPhase = phase
+        if (currentPhase is DrillPhase.FlashPause) return
+        if (currentPhase is DrillPhase.UserPaused) {
             totalPausedMs += System.currentTimeMillis() - pauseStartMs
-            isPaused = false
-            isUserPaused = false
+            phase = currentPhase.resumeTo
             startTimer()
         } else {
-            isPaused = true
-            isUserPaused = true
             pauseStartMs = System.currentTimeMillis()
             timerJob?.cancel()
+            phase = DrillPhase.UserPaused(resumeTo = currentPhase)
         }
         emitRunningState()
     }
@@ -244,24 +229,32 @@ class DrillViewModel(
         }
     }
 
-    private fun startFlashPause(onResume: () -> Unit) {
-        isPaused = true
+    private fun startFlashPause() {
+        timerJob?.cancel()
         val flashStart = System.currentTimeMillis()
         viewModelScope.launch {
             delay(correctDisplayMs)
             totalPausedMs += System.currentTimeMillis() - flashStart
-            if (!isUserPaused) isPaused = false
             feedbackClearJob?.cancel()
             feedbackSemitone = null
             feedbackType = null
             errorFretPosition = null
-            if (!isUserPaused) onResume()
+            val flashPhase = phase as? DrillPhase.FlashPause ?: return@launch
+            val nextIndex = flashPhase.nextToneIndex
+            if (nextIndex != null) {
+                currentFretboardNotes = currentFretboardNotes.map { it.copy(revealed = false) }
+                phase = DrillPhase.AwaitingTap(nextIndex)
+                startTimer()
+                emitRunningState()
+            } else {
+                advanceChord()
+            }
         }
     }
 
     private fun effectiveElapsedMs(): Long {
         if (sessionStartMs == 0L) return 0L
-        val activeFreeze = if (isPaused) System.currentTimeMillis() - pauseStartMs else 0L
+        val activeFreeze = if (phase is DrillPhase.UserPaused) System.currentTimeMillis() - pauseStartMs else 0L
         return System.currentTimeMillis() - sessionStartMs - totalPausedMs - activeFreeze
     }
 
@@ -290,10 +283,10 @@ class DrillViewModel(
         }
 
         currentIndex = completedIndex + 1
-        tappedThird = false
-        tappedSeventh = false
+        phase = DrillPhase.AwaitingTap(0)
         currentFretboardNotes = buildFretboardNotesForChord(chords[currentIndex])
         currentNoteButtons = buildShuffledButtonsForChord(chords[currentIndex])
+        startTimer()
         emitRunningState()
     }
 
@@ -332,10 +325,12 @@ class DrillViewModel(
             val interval = intervalFromRoot(note.semitone, chord.rootSemitone)
             FretDot(note.position, note.noteName, interval, note.semitone)
         }
-        val tappedSemitones = buildSet {
-            if (tappedThird) add(chord.thirdSemitone)
-            if (tappedSeventh) add(chord.seventhSemitone)
+        val tappedCount = when (val p = phase) {
+            is DrillPhase.AwaitingTap -> p.toneIndex
+            is DrillPhase.FlashPause -> p.nextToneIndex ?: orderedTones.size
+            is DrillPhase.UserPaused -> (p.resumeTo as? DrillPhase.AwaitingTap)?.toneIndex ?: 0
         }
+        val tappedSemitones = orderedTones.take(tappedCount).mapNotNull { chord.semitoneFor(it) }.toSet()
         val revealedSemitones = revealedNotes.map { it.semitone }.toSet()
         _uiState.value = DrillUiState.Running(
             progressionName = progressionName,
@@ -353,9 +348,13 @@ class DrillViewModel(
             playingPosition = playingPosition,
             inputMode = drillInputMode,
             errorFretPosition = errorFretPosition,
-            isPaused = isUserPaused,
+            isFlashPaused = phase is DrillPhase.FlashPause,
+            isUserPaused = phase is DrillPhase.UserPaused,
         )
     }
+
+    private fun ResolvedChord.semitoneFor(tone: Chord.Tone): Int? =
+        this[tone]?.let { noteNameToSemitone(it) }
 
     // Applies chord-tone spelling overrides for the 3rd and 7th buttons (so e.g. "Bbb"
     // appears instead of "Ab" for Gbdim7), then shuffles to eliminate positional cues.

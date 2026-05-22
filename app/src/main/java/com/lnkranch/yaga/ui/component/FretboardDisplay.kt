@@ -78,6 +78,7 @@ fun FretboardDisplay(
     dots: List<FretDot>,
     playingPosition: Int,
     tappable: Boolean,
+    showHints: Boolean = true,
     errorDot: FretPosition? = null,
     colorScheme: (intervalFromRoot: Int?) -> Color = FretboardDefaults.colorScheme,
     onFretTap: ((string: Int, fret: Int) -> Unit)? = null,
@@ -320,7 +321,7 @@ fun FretboardDisplay(
                 // ------------------------------------------------------------
                 // 7. Tap target hints (when tappable).
                 // ------------------------------------------------------------
-                if (tappable) {
+                if (tappable && showHints) {
                     val hintRadius = minOf(fretColW, stringSpacing) * HINT_RADIUS_RATIO
                     val hintRange  = if (hasOpenZone) 0..FretboardLocator.FRET_WINDOW_SIZE - 1 else windowStart..windowEnd
 

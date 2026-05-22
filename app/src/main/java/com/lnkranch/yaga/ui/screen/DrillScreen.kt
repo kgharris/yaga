@@ -203,10 +203,10 @@ private fun RunningContent(
                 "  err: ${state.misTapCount}",
                 style = MaterialTheme.typography.titleMedium,
             )
-            IconButton(onClick = onTogglePause) {
+            IconButton(onClick = onTogglePause, enabled = !state.isFlashPaused) {
                 Icon(
-                    imageVector = if (state.isPaused) Icons.Default.PlayArrow else Icons.Default.Pause,
-                    contentDescription = if (state.isPaused) "Resume" else "Pause",
+                    imageVector = if (state.isUserPaused) Icons.Default.PlayArrow else Icons.Default.Pause,
+                    contentDescription = if (state.isUserPaused) "Resume" else "Pause",
                 )
             }
         }
@@ -227,6 +227,7 @@ private fun RunningContent(
                     dots = state.fretDots,
                     playingPosition = state.playingPosition,
                     tappable = state.inputMode == DrillInputMode.Fretboard,
+                    showHints = !state.isFlashPaused,
                     errorDot = state.errorFretPosition,
                     onFretTap = if (state.inputMode == DrillInputMode.Fretboard) onFretTap else null,
                     modifier = Modifier.fillMaxWidth(),
@@ -241,6 +242,7 @@ private fun RunningContent(
                         tappedSemitones = state.tappedSemitones,
                         feedbackSemitone = state.feedbackSemitone,
                         feedbackType = state.feedbackType,
+                        isFlashPaused = state.isFlashPaused,
                         onTap = onTap,
                     )
                     DrillInputMode.Fretboard -> FretboardNoteGrid(
@@ -249,7 +251,7 @@ private fun RunningContent(
                     )
                 }
             }
-            if (state.isPaused) {
+            if (state.isUserPaused) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -269,6 +271,15 @@ private fun RunningContent(
 }
 
 private const val NoteGridShuffleDelayMs = 500L
+private const val DimAlpha = 0.4f
+
+@Composable
+private fun dimmedButtonColors() = ButtonDefaults.buttonColors(
+    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = DimAlpha),
+    contentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = DimAlpha),
+    disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = DimAlpha),
+    disabledContentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = DimAlpha),
+)
 private val NoteKeyHeight = 60.dp
 private val NoteGridHeight = NoteKeyHeight * 2 + 4.dp
 
@@ -278,6 +289,7 @@ private fun NoteGrid(
     tappedSemitones: Set<Int>,
     feedbackSemitone: Int?,
     feedbackType: NoteFeedback?,
+    isFlashPaused: Boolean,
     onTap: (Int) -> Unit,
 ) {
     var displayedButtons by remember { mutableStateOf(noteButtons.sortedBy { it.semitone }) }
@@ -306,6 +318,7 @@ private fun NoteGrid(
                 btn = btn,
                 isTapped = btn.semitone in tappedSemitones,
                 feedback = if (feedbackSemitone == btn.semitone) feedbackType else null,
+                isFlashPaused = isFlashPaused,
                 modifier = Modifier.animateItem(
                     placementSpec = spring(
                         dampingRatio = Spring.DampingRatioMediumBouncy,
@@ -357,12 +370,7 @@ private fun FretboardNoteKey(
             disabledContentColor = Color.White,
         )
     } else {
-        ButtonDefaults.buttonColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant,
-            contentColor = MaterialTheme.colorScheme.onSurface,
-            disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-            disabledContentColor = MaterialTheme.colorScheme.onSurface,
-        )
+        dimmedButtonColors()
     }
 
     Button(
@@ -386,6 +394,7 @@ private fun NoteKey(
     btn: NoteButton,
     isTapped: Boolean,
     feedback: NoteFeedback?,
+    isFlashPaused: Boolean,
     modifier: Modifier = Modifier,
     onTap: (Int) -> Unit,
 ) {
@@ -398,6 +407,7 @@ private fun NoteKey(
             containerColor = MaterialTheme.colorScheme.error,
             contentColor = MaterialTheme.colorScheme.onError
         )
+        isFlashPaused -> dimmedButtonColors()
         isTapped -> ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
         else -> ButtonDefaults.buttonColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant,
