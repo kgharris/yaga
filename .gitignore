@@ -8,4 +8,4 @@ build/
 .externalNativeBuild
 .cxx
 local.properties
-agent/
+.claude/

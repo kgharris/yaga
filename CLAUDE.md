@@ -80,3 +80,44 @@ A heatmap of performance per chord per key is the intended long-term feedback me
 ## Code Style
 
 - No magic numbers or string literals — every domain-meaningful constant must be a named `const val`. Define it at the closest logical owner: companion object for class-scoped values, top-level in the relevant file for file-scoped values, a dedicated `*Constants.kt` for shared cross-file values.
+
+
+## Work Commands
+
+When asked "what's next", "pick up next task", or "what's ready":
+1. Check for in-progress work first: `bd list --status in_progress`
+2. If any in-progress issues exist, show them with `bd show <id>` and suggest resuming — these represent interrupted work from a prior session
+3. Then run `bd ready` to show available unclaimed issues
+4. Present both lists and let the user choose
+
+When asked to "work on `<id>`" or the user selects an issue:
+1. Run `bd update <id> --claim`
+2. Run `bd show <id>` to read the full description and design
+3. Create a feature branch: `git checkout -b <id>-<short-slug>`
+4. Route by issue type:
+   - **Bug** — implement directly, then proceed to step 5
+   - **Feature** — read the description and design fields, draft an implementation plan (files × steps), spawn agents serially with a build gate between each step
+5. Verify the build (use Bash tool, not PowerShell — gradlew.bat has a classpath issue in PS):
+   - Always: `./gradlew :app:compileDebugKotlin`
+   - If engine touched: `./gradlew :engine:test :engine:jacocoTestReport`
+6. Squash agent commits on the feature branch, then push to Gitea (origin)
+7. Run `bd close <id>` when work is complete
+
+When work reveals follow-up tasks:
+- File new issues with `bd create`
+- Add dependencies with `bd dep add` where ordering matters
+
+## Beads Issue Tracker
+
+This project uses **bd (beads)** for issue tracking.
+
+```bash
+bd ready                     # Find available work
+bd show <id>                 # View issue details
+bd update <id> --claim       # Claim work
+bd close <id>                # Complete work
+bd create "title" -t bug|feature|task|chore -p 0-4  # File a new issue
+bd dep add <child> <parent>  # Add dependency
+```
+
+Use `bd` for all task tracking — do not use markdown TODO lists or TaskCreate.

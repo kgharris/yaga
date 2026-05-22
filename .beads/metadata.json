@@ -1,0 +1,7 @@
+{
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "embedded",
+  "dolt_database": "yaga",
+  "project_id": "b85bcee1-fb84-4a9d-8581-54d37fa7be02"
+}
