@@ -166,7 +166,7 @@ private fun RunningContent(
             modifier = Modifier.fillMaxWidth(),
         )
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(24.dp))
 
         // Zone 3 — Input zone (bottom, natural height)
         when (state.inputMode) {

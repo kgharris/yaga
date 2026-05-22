@@ -157,7 +157,10 @@ fun FretboardDisplay(
 
             // Map a canvas tap offset to (string, fret).
             fun tapToCell(offset: Offset): Pair<Int, Int> {
-                val row = (offset.y / stringSpacing + 0.5f).toInt().coerceIn(0, numStrings - 1)
+                // Equal bands: each string owns 1/numStrings of the height.
+                // Rounding to nearest string-position would give edge strings (0 and 5)
+                // only half the tap area of interior strings.
+                val row = (offset.y / heightPx * numStrings).toInt().coerceIn(0, numStrings - 1)
                 val fret = if (hasOpenZone) {
                     if (offset.x < nutX) {
                         0   // open zone tapped
