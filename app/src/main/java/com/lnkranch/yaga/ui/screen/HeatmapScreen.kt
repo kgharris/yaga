@@ -50,11 +50,14 @@ import com.lnkranch.yaga.ui.viewmodel.HeatmapViewModel
 private val colorGreen = Color(0xFF4CAF50)
 private val colorYellow = Color(0xFFFFEB3B)
 
+private const val HEATMAP_COLOR_MIDPOINT = 0.5f
+private const val HEATMAP_COLOR_SCALE = 1f / HEATMAP_COLOR_MIDPOINT
+
 private fun heatmapColor(normalizedScore: Float, errorColor: Color): Color =
-    if (normalizedScore <= 0.5f) {
-        lerp(colorGreen, colorYellow, normalizedScore * 2f)
+    if (normalizedScore <= HEATMAP_COLOR_MIDPOINT) {
+        lerp(colorGreen, colorYellow, normalizedScore * HEATMAP_COLOR_SCALE)
     } else {
-        lerp(colorYellow, errorColor, (normalizedScore - 0.5f) * 2f)
+        lerp(colorYellow, errorColor, (normalizedScore - HEATMAP_COLOR_MIDPOINT) * HEATMAP_COLOR_SCALE)
     }
 
 private sealed interface DialogState {

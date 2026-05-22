@@ -143,7 +143,7 @@ class DrillViewModel(
 
         timerJob = viewModelScope.launch {
             while (isActive) {
-                delay(100)
+                delay(TIMER_UPDATE_INTERVAL_MS)
                 emitRunningState()
             }
         }
@@ -209,7 +209,7 @@ class DrillViewModel(
         feedbackSemitone = semitone
         feedbackType = type
         feedbackClearJob = viewModelScope.launch {
-            delay(300)
+            delay(FEEDBACK_FLASH_MS)
             feedbackSemitone = null
             feedbackType = null
             emitRunningState()
@@ -345,6 +345,9 @@ class DrillViewModel(
     }
 
     companion object {
+        private const val TIMER_UPDATE_INTERVAL_MS = 100L
+        private const val FEEDBACK_FLASH_MS = 300L
+
         fun Factory(
             repository: DrillRepository,
             progressionId: Long,

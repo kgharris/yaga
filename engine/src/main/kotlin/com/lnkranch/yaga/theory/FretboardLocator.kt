@@ -13,13 +13,17 @@ object FretboardLocator {
     // Strings indexed 0 (high E) through 5 (low E), matching display order (high E at top).
     val OPEN_SEMITONES: IntArray = intArrayOf(4, 11, 7, 2, 9, 4)
 
-    fun semitoneAt(string: Int, fret: Int): Int = (OPEN_SEMITONES[string] + fret) % 12
+    const val NUM_STRINGS = 6
+    const val FRET_WINDOW_SIZE = 6
+
+    fun semitoneAt(string: Int, fret: Int): Int =
+        (OPEN_SEMITONES[string] + fret) % SEMITONES_PER_OCTAVE
 
     fun locateNote(noteSemitone: Int, windowStart: Int): List<FretPosition> {
         val results = mutableListOf<FretPosition>()
-        for (string in 0..5) {
-            for (fret in windowStart until windowStart + 6) {
-                if ((OPEN_SEMITONES[string] + fret) % 12 == noteSemitone % 12) {
+        for (string in 0 until NUM_STRINGS) {
+            for (fret in windowStart until windowStart + FRET_WINDOW_SIZE) {
+                if ((OPEN_SEMITONES[string] + fret) % SEMITONES_PER_OCTAVE == noteSemitone % SEMITONES_PER_OCTAVE) {
                     results += FretPosition(string, fret)
                 }
             }

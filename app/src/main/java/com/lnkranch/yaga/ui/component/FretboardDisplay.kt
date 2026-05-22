@@ -24,6 +24,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import com.lnkranch.yaga.domain.FretDot
 import com.lnkranch.yaga.theory.FretPosition
+import com.lnkranch.yaga.theory.FretboardLocator
 import com.lnkranch.yaga.theory.IntervalRole
 import com.lnkranch.yaga.theory.intervalRole
 
@@ -51,6 +52,24 @@ private val INLAY_FRETS = setOf(3, 5, 7, 9, 12, 15, 17, 19, 21)
 private val DOUBLE_INLAY_FRETS = setOf(12)
 
 // ---------------------------------------------------------------------------
+// Rendering constants
+// ---------------------------------------------------------------------------
+
+private const val OPEN_ZONE_WIDTH_RATIO = 0.13f
+private const val STRING_BASE_STROKE = 1.5f
+private const val STRING_THICKNESS_SCALE = 0.4f
+private const val STRETCH_FRET_ALPHA = 0.6f
+private const val NUT_STROKE_WIDTH = 12f
+private const val POSITION_LABEL_THRESHOLD = 2
+private const val INLAY_RADIUS_RATIO = 0.12f
+private const val DOUBLE_INLAY_OFFSET_RATIO = 0.6f
+private const val NOTE_DOT_RADIUS_RATIO = 0.32f
+private const val DOT_TEXT_SIZE_RATIO = 0.95f
+private const val HINT_RADIUS_RATIO = 0.28f
+private const val HINT_ALPHA_STRETCH = 0.40f
+private const val HINT_ALPHA_NORMAL = 0.70f
+
+// ---------------------------------------------------------------------------
 // Composable
 // ---------------------------------------------------------------------------
 
@@ -65,7 +84,7 @@ fun FretboardDisplay(
     modifier: Modifier = Modifier,
 ) {
     val windowStart = playingPosition - 1
-    val windowEnd   = windowStart + 5
+    val windowEnd   = windowStart + FretboardLocator.FRET_WINDOW_SIZE - 1
 
     val dotMap = dots.associateBy { it.position.string to it.position.fret }
 
@@ -95,17 +114,17 @@ fun FretboardDisplay(
             // with 6 equal columns across the full width, no open zone.
             // ----------------------------------------------------------------
 
-            val numStrings   = 6
-            val hasOpenZone  = windowStart == 0
+            val numStrings  = FretboardLocator.NUM_STRINGS
+            val hasOpenZone = windowStart == 0
 
             // Width of the zone to the left of the nut (open strings only).
-            val openZoneW    = if (hasOpenZone) widthPx * 0.13f else 0f
+            val openZoneW    = if (hasOpenZone) widthPx * OPEN_ZONE_WIDTH_RATIO else 0f
             // X where the nut lives and the string lines begin.
             val nutX         = openZoneW
             // Width available for the regular fret columns.
             val fretboardW   = widthPx - nutX
             // Number of fret columns displayed in the main fretboard area.
-            val numFretCols  = if (hasOpenZone) 5 else 6
+            val numFretCols  = if (hasOpenZone) FretboardLocator.FRET_WINDOW_SIZE - 1 else FretboardLocator.FRET_WINDOW_SIZE
             val fretColW     = fretboardW / numFretCols.toFloat()
 
             val stringSpacing = heightPx / (numStrings - 1).toFloat()
@@ -181,7 +200,7 @@ fun FretboardDisplay(
                         color       = Color(0xFF424242),
                         start       = Offset(nutX, y),
                         end         = Offset(widthPx, y),
-                        strokeWidth = if (s == 0) 1.5f else (1.5f + s * 0.4f),
+                        strokeWidth = STRING_BASE_STROKE + s * STRING_THICKNESS_SCALE,
                     )
                 }
 
@@ -192,12 +211,12 @@ fun FretboardDisplay(
                 // ------------------------------------------------------------
                 for (n in 0..numFretCols) {
                     val x     = nutX + n * fretColW
-                    val alpha = if (!hasOpenZone && (n == 0 || n == numFretCols)) 0.6f else 1f
+                    val alpha = if (!hasOpenZone && (n == 0 || n == numFretCols)) STRETCH_FRET_ALPHA else 1f
                     drawLine(
                         color       = Color(0xFF757575).copy(alpha = alpha),
                         start       = Offset(x, 0f),
                         end         = Offset(x, heightPx),
-                        strokeWidth = 1.5f,
+                        strokeWidth = STRING_BASE_STROKE,
                     )
                 }
 
@@ -209,10 +228,10 @@ fun FretboardDisplay(
                         color       = Color.Black,
                         start       = Offset(nutX, 0f),
                         end         = Offset(nutX, heightPx),
-                        strokeWidth = 12f,
+                        strokeWidth = NUT_STROKE_WIDTH,
                         cap         = StrokeCap.Butt,
                     )
-                } else if (windowStart > 2) {
+                } else if (windowStart > POSITION_LABEL_THRESHOLD) {
                     drawIntoCanvas { canvas ->
                         val paint = android.graphics.Paint().apply {
                             color       = android.graphics.Color.argb(180, 255, 255, 255)
@@ -232,15 +251,15 @@ fun FretboardDisplay(
                 // ------------------------------------------------------------
                 // 4. Inlay dots.
                 // ------------------------------------------------------------
-                val inlayRadius = fretColW * 0.12f
+                val inlayRadius = fretColW * INLAY_RADIUS_RATIO
                 val inlayY      = (stringY(2) + stringY(3)) / 2f
-                val inlayRange  = if (hasOpenZone) 1..5 else windowStart..windowEnd
+                val inlayRange  = if (hasOpenZone) 1..FretboardLocator.FRET_WINDOW_SIZE - 1 else windowStart..windowEnd
 
                 for (fret in inlayRange) {
                     if (fret !in INLAY_FRETS) continue
                     val cx = fretCenterX(fret) ?: continue
                     if (fret in DOUBLE_INLAY_FRETS) {
-                        val off = stringSpacing * 0.6f
+                        val off = stringSpacing * DOUBLE_INLAY_OFFSET_RATIO
                         drawCircle(Color(0xFF555555), inlayRadius, Offset(cx, inlayY - off))
                         drawCircle(Color(0xFF555555), inlayRadius, Offset(cx, inlayY + off))
                     } else {
@@ -251,12 +270,12 @@ fun FretboardDisplay(
                 // ------------------------------------------------------------
                 // 5. Note dots.
                 // ------------------------------------------------------------
-                val dotRadius  = minOf(fretColW, stringSpacing) * 0.32f
-                val dotRange   = if (hasOpenZone) 0..5 else windowStart..windowEnd
+                val dotRadius  = minOf(fretColW, stringSpacing) * NOTE_DOT_RADIUS_RATIO
+                val dotRange   = if (hasOpenZone) 0..FretboardLocator.FRET_WINDOW_SIZE - 1 else windowStart..windowEnd
 
                 for (fret in dotRange) {
                     val cx = fretCenterX(fret) ?: continue
-                    val stretchAlpha = if (isStretchFret(fret)) 0.6f else 1f
+                    val stretchAlpha = if (isStretchFret(fret)) STRETCH_FRET_ALPHA else 1f
 
                     for (string in 0 until numStrings) {
                         val dot = dotMap[string to fret] ?: continue
@@ -269,7 +288,7 @@ fun FretboardDisplay(
                         drawIntoCanvas { canvas ->
                             val textPaint = android.graphics.Paint().apply {
                                 color          = android.graphics.Color.WHITE
-                                textSize       = dotRadius * 0.95f
+                                textSize       = dotRadius * DOT_TEXT_SIZE_RATIO
                                 textAlign      = android.graphics.Paint.Align.CENTER
                                 isAntiAlias    = true
                                 isFakeBoldText = true
@@ -299,12 +318,12 @@ fun FretboardDisplay(
                 // 7. Tap target hints (when tappable).
                 // ------------------------------------------------------------
                 if (tappable) {
-                    val hintRadius = minOf(fretColW, stringSpacing) * 0.28f
-                    val hintRange  = if (hasOpenZone) 0..5 else windowStart..windowEnd
+                    val hintRadius = minOf(fretColW, stringSpacing) * HINT_RADIUS_RATIO
+                    val hintRange  = if (hasOpenZone) 0..FretboardLocator.FRET_WINDOW_SIZE - 1 else windowStart..windowEnd
 
                     for (fret in hintRange) {
                         val cx = fretCenterX(fret) ?: continue
-                        val hintAlpha = if (isStretchFret(fret)) 0.40f else 0.70f
+                        val hintAlpha = if (isStretchFret(fret)) HINT_ALPHA_STRETCH else HINT_ALPHA_NORMAL
 
                         for (string in 0 until numStrings) {
                             if (dotMap.containsKey(string to fret)) continue
@@ -312,7 +331,7 @@ fun FretboardDisplay(
                                 color  = Color(0xFF757575).copy(alpha = hintAlpha),
                                 radius = hintRadius,
                                 center = Offset(cx, stringY(string)),
-                                style  = Stroke(width = 1.5f),
+                                style  = Stroke(width = STRING_BASE_STROKE),
                             )
                         }
                     }

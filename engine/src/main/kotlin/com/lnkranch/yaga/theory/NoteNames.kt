@@ -4,11 +4,11 @@ fun noteNameToSemitone(name: String): Int {
     val base = mapOf('C' to 0, 'D' to 2, 'E' to 4, 'F' to 5, 'G' to 7, 'A' to 9, 'B' to 11)
     val sharps = name.count { it == '#' }
     val flats  = name.count { it == 'b' }
-    return ((base.getValue(name[0]) + sharps - flats) + 120) % 12
+    return ((base.getValue(name[0]) + sharps - flats) + SAFE_OCTAVE_MODULO_OFFSET) % SEMITONES_PER_OCTAVE
 }
 
 fun intervalFromRoot(noteSemitone: Int, rootSemitone: Int): Int =
-    (noteSemitone - rootSemitone + 12) % 12
+    (noteSemitone - rootSemitone + SEMITONES_PER_OCTAVE) % SEMITONES_PER_OCTAVE
 
 enum class IntervalRole { Root, Third, Fifth, Seventh, OtherExtension }
 

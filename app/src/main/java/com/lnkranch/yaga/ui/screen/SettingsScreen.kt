@@ -43,7 +43,7 @@ fun SettingsScreen(vm: SettingsViewModel, onBack: () -> Unit) {
     val correctDisplayMs by vm.correctDisplayMs.collectAsState()
 
     var positionSlider by remember(playingPosition) {
-        mutableFloatStateOf((playingPosition - 1).toFloat())
+        mutableFloatStateOf((playingPosition - SettingsRepository.PLAYING_POSITION_MIN).toFloat())
     }
 
     var showDisplayTimeDialog by remember { mutableStateOf(false) }
@@ -80,16 +80,18 @@ fun SettingsScreen(vm: SettingsViewModel, onBack: () -> Unit) {
                     modifier = Modifier.weight(1f),
                 )
                 Text(
-                    text = (positionSlider.toInt() + 1).toString(),
+                    text = (positionSlider.toInt() + SettingsRepository.PLAYING_POSITION_MIN).toString(),
                     style = MaterialTheme.typography.bodyLarge,
                 )
             }
             Slider(
                 value = positionSlider,
                 onValueChange = { positionSlider = it },
-                onValueChangeFinished = { vm.setPlayingPosition(positionSlider.toInt() + 1) },
-                valueRange = 0f..16f,
-                steps = 15,
+                onValueChangeFinished = {
+                    vm.setPlayingPosition(positionSlider.toInt() + SettingsRepository.PLAYING_POSITION_MIN)
+                },
+                valueRange = 0f..(SettingsRepository.PLAYING_POSITION_MAX - SettingsRepository.PLAYING_POSITION_MIN).toFloat(),
+                steps = SettingsRepository.PLAYING_POSITION_MAX - SettingsRepository.PLAYING_POSITION_MIN - 1,
                 modifier = Modifier.fillMaxWidth(),
             )
 

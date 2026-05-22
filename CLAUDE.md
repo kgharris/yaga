@@ -76,3 +76,7 @@ A heatmap of performance per chord per key is the intended long-term feedback me
 ## Identifier Style
 
 - Use underscore-prefixed identifiers for names that start with digits: `_3rd`, `_5th`, `_7th` (not backtick-escaped)
+
+## Code Style
+
+- No magic numbers or string literals — every domain-meaningful constant must be a named `const val`. Define it at the closest logical owner: companion object for class-scoped values, top-level in the relevant file for file-scoped values, a dedicated `*Constants.kt` for shared cross-file values.
