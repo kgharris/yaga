@@ -23,8 +23,11 @@ import com.lnkranch.yaga.theory.RomanChord
 import com.lnkranch.yaga.theory.TheoryEngine
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
@@ -80,6 +83,9 @@ class DrillViewModel(
 
     private val _uiState = MutableStateFlow<DrillUiState>(DrillUiState.Loading)
     val uiState: StateFlow<DrillUiState> = _uiState.asStateFlow()
+
+    private val _hapticEvent = MutableSharedFlow<NoteFeedback>(extraBufferCapacity = 1)
+    val hapticEvent: SharedFlow<NoteFeedback> = _hapticEvent.asSharedFlow()
 
     private var chords: List<ResolvedChord> = emptyList()
     private var tonicSemitone = 0
@@ -206,6 +212,7 @@ class DrillViewModel(
     }
 
     private fun showFeedback(semitone: Int, type: NoteFeedback) {
+        _hapticEvent.tryEmit(type)
         feedbackSemitone = semitone
         feedbackType = type
         feedbackClearJob = viewModelScope.launch {

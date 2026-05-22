@@ -1,5 +1,10 @@
 package com.lnkranch.yaga.ui.screen
 
+import android.content.Context
+import android.os.Build
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.view.HapticFeedbackConstants
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.systemBarsPadding
@@ -21,8 +26,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.lnkranch.yaga.domain.DrillInputMode
@@ -39,10 +46,42 @@ import com.lnkranch.yaga.theory.ResolvedChord
 import com.lnkranch.yaga.ui.theme.ChordToneDrillTheme
 
 @Composable
+private fun rememberHapticPlayer(): (NoteFeedback) -> Unit {
+    val view = LocalView.current
+    return remember(view) {
+        { feedback ->
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                val constant = when (feedback) {
+                    NoteFeedback.Correct   -> HapticFeedbackConstants.CONFIRM
+                    NoteFeedback.Incorrect -> HapticFeedbackConstants.REJECT
+                }
+                view.performHapticFeedback(constant)
+            } else {
+                // API 26-29: drive Vibrator directly
+                @Suppress("DEPRECATION")
+                val vib = view.context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+                    ?: return@remember
+                if (feedback == NoteFeedback.Correct) {
+                    vib.vibrate(VibrationEffect.createOneShot(50, VibrationEffect.DEFAULT_AMPLITUDE))
+                } else {
+                    vib.vibrate(
+                        VibrationEffect.createWaveform(longArrayOf(0, 60, 100, 60), -1)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
 fun DrillScreen(
     vm: DrillViewModel,
     onSessionComplete: (DrillUiState.Complete) -> Unit,
 ) {
+    val hapticPlayer = rememberHapticPlayer()
+    LaunchedEffect(Unit) {
+        vm.hapticEvent.collect { hapticPlayer(it) }
+    }
     val uiState by vm.uiState.collectAsState()
 
     LaunchedEffect(uiState) {
