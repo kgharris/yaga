@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.lnkranch.yaga.data.db.entity.ProgressionEntity
 import com.lnkranch.yaga.data.repository.DrillRepository
+import com.lnkranch.yaga.domain.DrillInputMode
 import com.lnkranch.yaga.domain.DrillMode
 import com.lnkranch.yaga.domain.TONIC_NAMES
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,6 +29,9 @@ class SetupViewModel(repository: DrillRepository) : ViewModel() {
     private val _selectedDrillMode = MutableStateFlow(DrillMode.Normal)
     val selectedDrillMode: StateFlow<DrillMode> = _selectedDrillMode
 
+    private val _selectedInputMode = MutableStateFlow(DrillInputMode.Buttons)
+    val selectedInputMode: StateFlow<DrillInputMode> = _selectedInputMode
+
     val canStartDrill: StateFlow<Boolean> = combine(selectedTonic, selectedProgressionId) { _, id ->
         id != null
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
@@ -35,6 +39,7 @@ class SetupViewModel(repository: DrillRepository) : ViewModel() {
     fun selectTonic(tonic: String) { _selectedTonic.value = tonic }
     fun selectProgression(id: Long) { _selectedProgressionId.value = id }
     fun selectDrillMode(mode: DrillMode) { _selectedDrillMode.value = mode }
+    fun selectInputMode(mode: DrillInputMode) { _selectedInputMode.value = mode }
 
     companion object {
         fun Factory(repository: DrillRepository) = object : ViewModelProvider.Factory {

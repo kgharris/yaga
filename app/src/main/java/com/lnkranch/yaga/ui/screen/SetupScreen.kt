@@ -30,6 +30,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.lnkranch.yaga.data.db.entity.ProgressionEntity
+import com.lnkranch.yaga.domain.DrillInputMode
 import com.lnkranch.yaga.domain.DrillMode
 import com.lnkranch.yaga.ui.theme.ChordToneDrillTheme
 import com.lnkranch.yaga.ui.viewmodel.SetupViewModel
@@ -37,13 +38,14 @@ import com.lnkranch.yaga.ui.viewmodel.SetupViewModel
 @Composable
 fun SetupScreen(
     vm: SetupViewModel,
-    onStartDrill: (Long, String, DrillMode) -> Unit,
+    onStartDrill: (Long, String, DrillMode, DrillInputMode) -> Unit,
     onBuildProgression: () -> Unit,
 ) {
     val progressions by vm.progressions.collectAsState()
     val selectedTonic by vm.selectedTonic.collectAsState()
     val selectedProgressionId by vm.selectedProgressionId.collectAsState()
     val selectedDrillMode by vm.selectedDrillMode.collectAsState()
+    val selectedInputMode by vm.selectedInputMode.collectAsState()
     val canStart by vm.canStartDrill.collectAsState()
 
     SetupScreenContent(
@@ -52,11 +54,13 @@ fun SetupScreen(
         selectedTonic = selectedTonic,
         selectedProgressionId = selectedProgressionId,
         selectedDrillMode = selectedDrillMode,
+        selectedInputMode = selectedInputMode,
         canStart = canStart,
         onTonicSelect = { vm.selectTonic(it) },
         onProgressionSelect = { vm.selectProgression(it) },
         onDrillModeSelect = { vm.selectDrillMode(it) },
-        onStartDrill = { onStartDrill(selectedProgressionId!!, selectedTonic, selectedDrillMode) },
+        onInputModeSelect = { vm.selectInputMode(it) },
+        onStartDrill = { onStartDrill(selectedProgressionId!!, selectedTonic, selectedDrillMode, selectedInputMode) },
         onBuildProgression = onBuildProgression
     )
 }
@@ -74,10 +78,12 @@ fun SetupScreenPreview() {
             selectedTonic = "C",
             selectedProgressionId = 1L,
             selectedDrillMode = DrillMode.Normal,
+            selectedInputMode = DrillInputMode.Buttons,
             canStart = true,
             onTonicSelect = {},
             onProgressionSelect = { _ -> },
             onDrillModeSelect = {},
+            onInputModeSelect = {},
             onStartDrill = {},
             onBuildProgression = {}
         )
@@ -91,10 +97,12 @@ fun SetupScreenContent(
     selectedTonic: String,
     selectedProgressionId: Long?,
     selectedDrillMode: DrillMode,
+    selectedInputMode: DrillInputMode,
     canStart: Boolean,
     onTonicSelect: (String) -> Unit,
     onProgressionSelect: (Long) -> Unit,
     onDrillModeSelect: (DrillMode) -> Unit,
+    onInputModeSelect: (DrillInputMode) -> Unit,
     onStartDrill: () -> Unit,
     onBuildProgression: () -> Unit,
 ) {
@@ -158,6 +166,24 @@ fun SetupScreenContent(
                     FilterChip(
                         selected = mode == selectedDrillMode,
                         onClick = { onDrillModeSelect(mode) },
+                        label = { Text(mode.name) },
+                    )
+                }
+            }
+
+            Text(
+                text = "Input",
+                style = MaterialTheme.typography.titleSmall,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+            )
+            Row(
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                DrillInputMode.entries.forEach { mode ->
+                    FilterChip(
+                        selected = mode == selectedInputMode,
+                        onClick = { onInputModeSelect(mode) },
                         label = { Text(mode.name) },
                     )
                 }

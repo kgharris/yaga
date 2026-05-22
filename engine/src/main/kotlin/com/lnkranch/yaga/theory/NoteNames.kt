@@ -6,3 +6,17 @@ fun noteNameToSemitone(name: String): Int {
     val flats  = name.count { it == 'b' }
     return ((base.getValue(name[0]) + sharps - flats) + 120) % 12
 }
+
+fun intervalFromRoot(noteSemitone: Int, rootSemitone: Int): Int =
+    (noteSemitone - rootSemitone + 12) % 12
+
+enum class IntervalRole { Root, Third, Fifth, Seventh, OtherExtension }
+
+fun intervalRole(intervalFromRoot: Int?): IntervalRole? = when (intervalFromRoot) {
+    null      -> null
+    0         -> IntervalRole.Root
+    3, 4      -> IntervalRole.Third
+    6, 7      -> IntervalRole.Fifth
+    9, 10, 11 -> IntervalRole.Seventh
+    else      -> IntervalRole.OtherExtension
+}

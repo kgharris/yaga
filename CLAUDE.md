@@ -6,8 +6,12 @@ Android app (Kotlin + Jetpack Compose) for drilling chord tone identification. P
 
 ## Modules
 
-- `engine/` — pure Kotlin theory engine, zero Android dependencies
-- `app/` — Android UI (MVVM + Jetpack Compose)
+- `engine/` — pure Kotlin, zero Android dependencies; subject to 100%/100% Jacoco enforcement
+  - `engine/.../theory/` — music theory (Key, Chord, ResolvedChord, FretboardLocator, etc.)
+  - `engine/.../domain/` — drill app logic (ScoreCalculator, DrillMode, DrillSession, data shapes, etc.)
+- `app/` — Android glue only (ViewModel lifecycle, Compose UI, Room/DataStore wiring); no coverage requirement
+
+**Rule:** any pure Kotlin class with no Android imports belongs in `engine/`, not `app/`. The module boundary enforces this — `engine/` is a JVM-only module that physically cannot compile Android APIs. If logic can live in `engine/`, it must.
 
 ## Tech Stack
 
