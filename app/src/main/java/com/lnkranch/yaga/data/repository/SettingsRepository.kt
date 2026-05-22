@@ -17,7 +17,6 @@ class SettingsRepository(private val dataStore: DataStore<Preferences>) {
 
         const val CORRECT_DISPLAY_MS_DEFAULT = 1000
         const val CORRECT_DISPLAY_MS_MIN = 250
-        const val CORRECT_DISPLAY_MS_MAX = 2000
         const val CORRECT_DISPLAY_MS_STEP = 250
     }
 
@@ -30,13 +29,13 @@ class SettingsRepository(private val dataStore: DataStore<Preferences>) {
     }
 
     val correctDisplayMs: Flow<Int> = dataStore.data.map { prefs ->
-        prefs[CORRECT_DISPLAY_MS]?.coerceIn(CORRECT_DISPLAY_MS_MIN, CORRECT_DISPLAY_MS_MAX)
+        prefs[CORRECT_DISPLAY_MS]?.coerceAtLeast(CORRECT_DISPLAY_MS_MIN)
             ?: CORRECT_DISPLAY_MS_DEFAULT
     }
 
     suspend fun setCorrectDisplayMs(value: Int) {
         dataStore.edit {
-            it[CORRECT_DISPLAY_MS] = value.coerceIn(CORRECT_DISPLAY_MS_MIN, CORRECT_DISPLAY_MS_MAX)
+            it[CORRECT_DISPLAY_MS] = value.coerceAtLeast(CORRECT_DISPLAY_MS_MIN)
         }
     }
 }
