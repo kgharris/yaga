@@ -16,7 +16,7 @@ import com.lnkranch.yaga.data.db.entity.SessionResultEntity
 
 @Database(
     entities = [ProgressionEntity::class, PersonalBestEntity::class, SessionResultEntity::class, ChordAttemptEntity::class],
-    version = 3,
+    version = 4,
     exportSchema = false,
 )
 @TypeConverters(Converters::class)

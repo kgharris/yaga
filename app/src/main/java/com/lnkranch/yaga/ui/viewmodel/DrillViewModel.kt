@@ -245,6 +245,7 @@ class DrillViewModel(
             chordSymbol = current.symbol,
             tonicName = tonicName,
             drillMode = drillMode.name,
+            inputMode = inputMode.name,
             elapsedMs = System.currentTimeMillis() - chordStartMs,
             misTapCount = chordMisTapCount,
         ))

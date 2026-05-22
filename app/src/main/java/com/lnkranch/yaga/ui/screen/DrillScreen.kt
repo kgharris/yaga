@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -164,6 +165,8 @@ private fun RunningContent(
             onFretTap = if (state.inputMode == DrillInputMode.Fretboard) onFretTap else null,
             modifier = Modifier.fillMaxWidth(),
         )
+
+        Spacer(modifier = Modifier.height(12.dp))
 
         // Zone 3 — Input zone (bottom, natural height)
         when (state.inputMode) {

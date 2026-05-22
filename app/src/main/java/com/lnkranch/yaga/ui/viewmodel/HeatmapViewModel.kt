@@ -11,7 +11,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -39,6 +41,16 @@ class HeatmapViewModel(
     private val _selectedDrillMode = MutableStateFlow("")
     val selectedDrillMode: StateFlow<String> = _selectedDrillMode.asStateFlow()
 
+    val availableInputModes: StateFlow<List<String>> = _selectedDrillMode
+        .flatMapLatest { mode ->
+            if (mode.isEmpty()) flowOf(emptyList())
+            else repository.distinctInputModesForDrillMode(mode)
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    private val _selectedInputMode = MutableStateFlow("")
+    val selectedInputMode: StateFlow<String> = _selectedInputMode.asStateFlow()
+
     init {
         viewModelScope.launch {
             availableModes.collect { modes ->
@@ -48,20 +60,33 @@ class HeatmapViewModel(
                 }
             }
         }
+        viewModelScope.launch {
+            availableInputModes.collect { modes ->
+                val current = _selectedInputMode.value
+                if (current.isEmpty() || current !in modes) {
+                    _selectedInputMode.value = modes.firstOrNull() ?: ""
+                }
+            }
+        }
     }
 
     fun selectMode(mode: String) {
         _selectedDrillMode.value = mode
     }
 
-    private val attemptsForMode = _selectedDrillMode
-        .flatMapLatest { mode ->
-            if (mode.isEmpty()) {
-                kotlinx.coroutines.flow.flowOf(emptyList())
-            } else {
-                repository.allAttemptsForMode(mode)
-            }
+    fun selectInputMode(mode: String) {
+        _selectedInputMode.value = mode
+    }
+
+    private val attemptsForMode = combine(_selectedDrillMode, _selectedInputMode) { drill, input ->
+        drill to input
+    }.flatMapLatest { (drill, input) ->
+        if (drill.isEmpty() || input.isEmpty()) {
+            flowOf(emptyList())
+        } else {
+            repository.allAttemptsForModeAndInput(drill, input)
         }
+    }
 
     // Grouped by chordSymbol, sorted worst → best (highest normalizedScore first).
     val cells: StateFlow<List<HeatmapCell>> = attemptsForMode
@@ -96,17 +121,19 @@ class HeatmapViewModel(
 
     fun deleteCell(chordSymbol: String) {
         val mode = _selectedDrillMode.value
-        if (mode.isEmpty()) return
+        val inputMode = _selectedInputMode.value
+        if (mode.isEmpty() || inputMode.isEmpty()) return
         viewModelScope.launch {
-            repository.deleteAttemptsForCell(chordSymbol, mode)
+            repository.deleteAttemptsForCell(chordSymbol, mode, inputMode)
         }
     }
 
     fun deleteMode() {
         val mode = _selectedDrillMode.value
-        if (mode.isEmpty()) return
+        val inputMode = _selectedInputMode.value
+        if (mode.isEmpty() || inputMode.isEmpty()) return
         viewModelScope.launch {
-            repository.deleteAttemptsForMode(mode)
+            repository.deleteAttemptsForMode(mode, inputMode)
         }
     }
 

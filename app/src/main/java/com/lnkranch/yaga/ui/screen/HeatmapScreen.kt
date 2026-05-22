@@ -68,6 +68,8 @@ private sealed interface DialogState {
 fun HeatmapScreen(vm: HeatmapViewModel) {
     val availableModes by vm.availableModes.collectAsState()
     val selectedMode by vm.selectedDrillMode.collectAsState()
+    val availableInputModes by vm.availableInputModes.collectAsState()
+    val selectedInputMode by vm.selectedInputMode.collectAsState()
     val cells by vm.cells.collectAsState()
 
     var dialogState by remember { mutableStateOf<DialogState>(DialogState.None) }
@@ -98,7 +100,13 @@ fun HeatmapScreen(vm: HeatmapViewModel) {
                             onDismissRequest = { menuExpanded = false },
                         ) {
                             DropdownMenuItem(
-                                text = { Text("Reset ${selectedMode.ifEmpty { "current" }} mode") },
+                                text = {
+                                    val label = listOf(selectedMode, selectedInputMode)
+                                        .filter { it.isNotEmpty() }
+                                        .joinToString(" / ")
+                                        .ifEmpty { "current" }
+                                    Text("Reset $label")
+                                },
                                 onClick = {
                                     menuExpanded = false
                                     dialogState = DialogState.ResetMode
@@ -137,6 +145,20 @@ fun HeatmapScreen(vm: HeatmapViewModel) {
                     }
                 }
             }
+            if (availableInputModes.size > 1) {
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    items(availableInputModes) { mode ->
+                        FilterChip(
+                            selected = mode == selectedInputMode,
+                            onClick = { vm.selectInputMode(mode) },
+                            label = { Text(mode) },
+                        )
+                    }
+                }
+            }
 
             if (cells.isEmpty()) {
                 Box(
@@ -148,8 +170,12 @@ fun HeatmapScreen(vm: HeatmapViewModel) {
                     Text(
                         text = if (selectedMode.isEmpty())
                             "No drill data yet.\nComplete a session to see your heatmap."
-                        else
-                            "No data for $selectedMode mode yet.\nComplete a session to see your heatmap.",
+                        else {
+                            val label = listOf(selectedMode, selectedInputMode)
+                                .filter { it.isNotEmpty() }
+                                .joinToString(" / ")
+                            "No data for $label yet.\nComplete a session to see your heatmap."
+                        },
                         style = MaterialTheme.typography.bodyLarge,
                         textAlign = TextAlign.Center,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -177,8 +203,8 @@ fun HeatmapScreen(vm: HeatmapViewModel) {
 
         DialogState.ResetMode -> AlertDialog(
             onDismissRequest = { dialogState = DialogState.None },
-            title = { Text("Reset $selectedMode mode?") },
-            text = { Text("This will delete all heatmap data for $selectedMode mode. This cannot be undone.") },
+            title = { Text("Reset $selectedMode / $selectedInputMode?") },
+            text = { Text("This will delete all heatmap data for $selectedMode / $selectedInputMode. This cannot be undone.") },
             confirmButton = {
                 TextButton(onClick = {
                     vm.deleteMode()

@@ -72,17 +72,20 @@ class DrillRepository(db: AppDatabase) {
     suspend fun saveChordAttempts(attempts: List<ChordAttemptEntity>) =
         chordAttemptDao.insertAll(attempts)
 
-    fun allAttemptsForMode(drillMode: String): Flow<List<ChordAttemptEntity>> =
-        chordAttemptDao.getAllForMode(drillMode)
+    fun allAttemptsForModeAndInput(drillMode: String, inputMode: String): Flow<List<ChordAttemptEntity>> =
+        chordAttemptDao.getAllForModeAndInput(drillMode, inputMode)
 
     fun distinctDrillModes(): Flow<List<String>> =
         chordAttemptDao.distinctDrillModes()
 
-    suspend fun deleteAttemptsForMode(drillMode: String) =
-        chordAttemptDao.deleteAttemptsForMode(drillMode)
+    fun distinctInputModesForDrillMode(drillMode: String): Flow<List<String>> =
+        chordAttemptDao.distinctInputModesForDrillMode(drillMode)
 
-    suspend fun deleteAttemptsForCell(chordSymbol: String, drillMode: String) =
-        chordAttemptDao.deleteAttemptsForCell(chordSymbol, drillMode)
+    suspend fun deleteAttemptsForMode(drillMode: String, inputMode: String) =
+        chordAttemptDao.deleteAttemptsForMode(drillMode, inputMode)
+
+    suspend fun deleteAttemptsForCell(chordSymbol: String, drillMode: String, inputMode: String) =
+        chordAttemptDao.deleteAttemptsForCell(chordSymbol, drillMode, inputMode)
 
     suspend fun deleteAllAttempts() =
         chordAttemptDao.deleteAllAttempts()

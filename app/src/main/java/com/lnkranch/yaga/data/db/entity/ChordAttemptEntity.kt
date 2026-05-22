@@ -23,6 +23,7 @@ data class ChordAttemptEntity(
     val chordSymbol: String,   // e.g. "Dm7" — display only
     val tonicName: String,     // duplicated from session for query convenience
     val drillMode: String,     // duplicated from session for query convenience
+    val inputMode: String,     // duplicated from session for query convenience
     val elapsedMs: Long,       // time to complete this chord (ms)
     val misTapCount: Int,
 )
